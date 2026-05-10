@@ -55,6 +55,16 @@ using (bucket_id = 'lesson-videos');
 
 If your bucket is public, reads may already work without the select policy.
 
+### Lesson attachments (PDFs, docs)
+
+Run `supabase/lesson_attachments.sql` in the Supabase SQL Editor to:
+
+- add an `attachments` JSONB column on `Lesson`
+- create the `lesson-attachments` Storage bucket
+- add policies so **creators** (`User.role = CREATOR`) can upload/delete and **enrolled learners** can download
+
+Set `NEXT_PUBLIC_SUPABASE_ATTACHMENTS_BUCKET` if you use a different bucket name (default: `lesson-attachments`).
+
 ## Run
 
 ```bash

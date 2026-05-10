@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { StudioGate } from "@/components/studio-gate";
+import { StudioNav } from "@/components/studio-nav";
 
 export default function StudioLayout({
   children,
@@ -6,13 +8,21 @@ export default function StudioLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <nav className="mb-10 flex flex-wrap gap-2 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-        <Link href="/studio" className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50">Overview</Link>
-        <Link href="/studio/lessons" className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50">Lessons</Link>
-        <Link href="/studio/access" className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50">Access</Link>
-      </nav>
-      {children}
-    </div>
+    <StudioGate>
+      <div className="studio-discovery mx-auto w-full max-w-[1280px] flex-1 px-4 py-10 text-lum-on-background sm:px-6 lg:px-12">
+        <div className="mb-10 flex flex-col gap-5 border-b border-lum-outline/25 pb-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] sm:overflow-visible sm:pb-0">
+            <StudioNav />
+          </div>
+          <Link
+            href="/studio/lessons/new"
+            className="lum-btn-secondary shrink-0 px-5 py-2.5 text-center sm:text-left"
+          >
+            + Add lesson
+          </Link>
+        </div>
+        {children}
+      </div>
+    </StudioGate>
   );
 }

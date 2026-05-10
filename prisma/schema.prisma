@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CREATOR
+  VIEWER
+}
+
+model User {
+  id           String                 @id
+  name         String?
+  /// Creators: real email. Learners (phone auth) may use null after migration, or a phone-derived placeholder.
+  email        String?                @unique
+  /// Learners: E.164; creators using Supabase email auth may omit
+  phone        String?                @unique
+  /// Bcrypt hash for learner (phone) accounts — null for Supabase-only creators
+  passwordHash String?
+  role         Role                   @default(VIEWER)
+  enrollment   Enrollment?
+  lessonGrants LearningAccessGrant[]
+  createdAt    DateTime               @default(now())
+}
+
+model Class {
+  id        String    @id @default(uuid())
+  name      String
+  subjects  Subject[]
+}
+
+model Subject {
+  id      String  @id @default(uuid())
+  name    String
+  classId String
+  class   Class   @relation(fields: [classId], references: [id])
+  topics  Topic[]
+}
+
+model Topic {
+  id        String    @id @default(uuid())
+  name      String
+  /// Chapter index within this subject (1 = first chapter added, etc.)
+  sortOrder Int       @default(0)
+  subjectId String
+  subject   Subject   @relation(fields: [subjectId], references: [id])
+  lessons   Lesson[]
+}
+
+model Lesson {
+  id           String                @id @default(uuid())
+  title        String
+  description  String?
+  videoUrl     String
+  /// JSON array: [{ path, label, mime? }] — paths in Storage bucket `lesson-attachments`
+  attachments  Json?
+  published    Boolean               @default(true)
+  sortOrder    Int                   @default(0)
+  topicId      String
+  topic        Topic                 @relation(fields: [topicId], references: [id])
+  accessGrants LearningAccessGrant[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+/// Time-bound access to a single lesson (partial enrollment).
+model LearningAccessGrant {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}

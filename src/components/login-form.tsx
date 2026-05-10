@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { UgPhoneInput } from "@/components/ug-phone-input";
+import { isValidUgE164 } from "@/lib/ug-phone";
 
-export function LoginForm() {
+export function LoginForm({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const registered = searchParams.get("registered");
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/learn";
+  const callbackUrl =
+    searchParams.get("callbackUrl") ?? (isAdmin ? "/studio" : "/");
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [error, setError] = useState<string | null>(null);
@@ -20,50 +21,87 @@ export function LoginForm() {
     setError(null);
     setPending(true);
     const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") ?? "").trim().toLowerCase();
     const password = String(fd.get("password") ?? "");
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+    if (!isAdmin) {
+      const phone = String(fd.get("phone") ?? "").trim();
+      if (!isValidUgE164(phone)) {
+        setPending(false);
+        setError(
+          "Enter a complete Ugandan mobile number (9 digits after +256).",
+        );
+        return;
+      }
+
+      const res = await fetch("/api/auth/learner/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone, password }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      setPending(false);
+      if (!res.ok) {
+        setError(
+          typeof json.error === "string"
+            ? json.error
+            : "Sign-in failed. Try again.",
+        );
+        return;
+      }
+
+      router.push(callbackUrl);
+      router.refresh();
+      return;
+    }
+
+    const { error: signErr } = await supabase.auth.signInWithPassword({
+      email: String(fd.get("email") ?? "").trim().toLowerCase(),
       password,
     });
 
     setPending(false);
-    if (signInError) {
-      setError(signInError.message || "Invalid email or password.");
+    if (signErr) {
+      setError(signErr.message || "Invalid credentials.");
       return;
     }
 
-    router.push(callbackUrl.startsWith("/") ? callbackUrl : "/learn");
+    router.push(callbackUrl);
     router.refresh();
   }
 
   return (
-    <div className="mx-auto w-full max-w-sm space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Sign in
-        </h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Sign in using Supabase auth.
-        </p>
-      </div>
-      {registered ? (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-          Account created. Check email verification if enabled, then sign in.
-        </p>
-      ) : null}
+    <div className="mx-auto w-full max-w-sm">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input name="email" type="email" required placeholder="Email" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50" />
-        <input name="password" type="password" required placeholder="Password" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50" />
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
-        <button type="submit" disabled={pending} className="flex w-full justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
+        {isAdmin ? (
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="Admin Email"
+            className="lum-input"
+          />
+        ) : (
+          <UgPhoneInput />
+        )}
+        <input
+          name="password"
+          type="password"
+          required
+          placeholder="Password"
+          className="lum-input lum-input--pill"
+        />
+        {error ? (
+          <p className="border-b-2 border-lum-error px-1 pb-1 text-sm text-lum-error">
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" disabled={pending} className="lum-btn-primary w-full">
           {pending ? "Signing in..." : "Sign in"}
         </button>
       </form>
-      <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
-        No account? <Link href="/register" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Register</Link>
-      </p>
     </div>
   );
 }

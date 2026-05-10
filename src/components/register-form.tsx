@@ -1,12 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { UgPhoneInput } from "@/components/ug-phone-input";
+import { isValidUgE164 } from "@/lib/ug-phone";
 
-export function RegisterForm() {
+export function RegisterForm({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const learnerDestination = searchParams.get("callbackUrl") ?? "/";
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -16,55 +19,100 @@ export function RegisterForm() {
     setError(null);
     setPending(true);
     const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") ?? "").trim().toLowerCase();
     const password = String(fd.get("password") ?? "");
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
+    let phoneE164: string | null = null;
+    if (!isAdmin) {
+      const raw = String(fd.get("phone") ?? "").trim();
+      if (!isValidUgE164(raw)) {
+        setPending(false);
+        setError(
+          "Enter a complete Ugandan mobile number (9 digits after +256).",
+        );
+        return;
+      }
+      phoneE164 = raw;
+
+      const res = await fetch("/api/auth/learner/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: phoneE164, password }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      setPending(false);
+      if (!res.ok) {
+        setError(
+          typeof json.error === "string"
+            ? json.error
+            : "Registration failed. Try again.",
+        );
+        return;
+      }
+
+      router.push(learnerDestination);
+      router.refresh();
+      return;
+    }
+
+    const { data, error: signErr } = await supabase.auth.signUp({
+      email: String(fd.get("email") ?? "").trim().toLowerCase(),
       password,
     });
 
-    if (signUpError) {
+    if (signErr) {
       setPending(false);
-      setError(signUpError.message);
+      setError(signErr.message);
       return;
     }
 
     const userId = data.user?.id;
+    const adminEmail = String(fd.get("email") ?? "").trim().toLowerCase();
     if (userId) {
-      const creatorEmail =
-        (process.env.NEXT_PUBLIC_CREATOR_EMAIL ?? "").trim().toLowerCase();
-      const role = email === creatorEmail ? "CREATOR" : "VIEWER";
       await supabase.from("User").upsert({
         id: userId,
-        email,
-        role,
-        name: email.split("@")[0],
+        email: adminEmail,
+        phone: null,
+        role: "CREATOR",
       });
     }
 
     setPending(false);
-    router.push("/login?registered=1");
+    router.push("/admin/login?registered=1");
     router.refresh();
   }
 
   return (
-    <div className="mx-auto w-full max-w-sm space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Create account</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Register with Supabase auth credentials.</p>
-      </div>
+    <div className="mx-auto w-full max-w-sm">
       <form onSubmit={onSubmit} className="space-y-4">
-        <input name="email" type="email" required placeholder="Email" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50" />
-        <input name="password" type="password" minLength={8} required placeholder="Password (min 8 chars)" className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50" />
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
-        <button type="submit" disabled={pending} className="flex w-full justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
+        {isAdmin ? (
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="Admin Email"
+            className="lum-input"
+          />
+        ) : (
+          <UgPhoneInput />
+        )}
+        <input
+          name="password"
+          type="password"
+          minLength={8}
+          required
+          placeholder="Password"
+          className="lum-input lum-input--pill"
+        />
+        {error ? (
+          <p className="border-b-2 border-lum-error px-1 pb-1 text-sm text-lum-error">
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" disabled={pending} className="lum-btn-primary w-full">
           {pending ? "Creating..." : "Create account"}
         </button>
       </form>
-      <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
-        Already have an account? <Link href="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Sign in</Link>
-      </p>
     </div>
   );
 }

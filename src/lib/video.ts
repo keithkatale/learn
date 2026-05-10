@@ -22,6 +22,8 @@ export function isAllowedEmbedUrl(url: string): boolean {
     return (
       host === "www.youtube.com" ||
       host === "youtube.com" ||
+      host === "youtu.be" ||
+      host === "m.youtube.com" ||
       host === "player.vimeo.com"
     );
   } catch {
@@ -33,11 +35,45 @@ export function isPlayableVideoUrl(url: string): boolean {
   return isAllowedEmbedUrl(url) || isDirectVideoUrl(url);
 }
 
+/**
+ * Poster image for catalog cards. YouTube/Vimeo supported; direct file URLs → null (use placeholder UI).
+ */
+export function videoThumbnailUrl(videoUrl: string): string | null {
+  const trimmed = videoUrl.trim();
+  const ytWatch = /youtube\.com\/watch\?v=([^&]+)/;
+  const ytShort = /youtu\.be\/([^/?&#]+)/;
+  const ytShorts = /youtube\.com\/shorts\/([^/?&#]+)/;
+  const ytEmbed = /youtube\.com\/embed\/([^/?&#]+)/;
+  const m =
+    trimmed.match(ytWatch) ??
+    trimmed.match(ytShort) ??
+    trimmed.match(ytShorts) ??
+    trimmed.match(ytEmbed);
+  if (m?.[1]) {
+    return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
+  }
+  const vimeo = /vimeo\.com\/(?:video\/)?(\d+)/;
+  const vm = trimmed.match(vimeo);
+  if (vm?.[1]) {
+    return `https://vumbnail.com/${vm[1]}.jpg`;
+  }
+  const playerVimeo = /player\.vimeo\.com\/video\/(\d+)/;
+  const pv = trimmed.match(playerVimeo);
+  if (pv?.[1]) {
+    return `https://vumbnail.com/${pv[1]}.jpg`;
+  }
+  return null;
+}
+
 export function toEmbedUrl(url: string): string {
   const trimmed = url.trim();
   const ytWatch = /youtube\.com\/watch\?v=([^&]+)/;
-  const ytShort = /youtu\.be\/([^/?]+)/;
-  const m = trimmed.match(ytWatch) ?? trimmed.match(ytShort);
+  const ytShort = /youtu\.be\/([^/?&#]+)/;
+  const ytShorts = /youtube\.com\/shorts\/([^/?&#]+)/;
+  const m =
+    trimmed.match(ytWatch) ??
+    trimmed.match(ytShort) ??
+    trimmed.match(ytShorts);
   if (m?.[1]) {
     return `https://www.youtube.com/embed/${m[1]}`;
   }
