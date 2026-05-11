@@ -108,6 +108,14 @@ export function validateAttachmentFile(file: File): string | null {
   return null;
 }
 
+/** Fired before each file upload starts (`completed` = already finished count). */
+export type LessonAttachmentUploadProgress = {
+  completed: number;
+  total: number;
+  /** File currently being sent to the server */
+  activeFile: string | null;
+};
+
 /**
  * Uploads via server API (service role) so Storage RLS does not block creators
  * who only match NEXT_PUBLIC_CREATOR_EMAIL, and so MIME is handled consistently.
@@ -116,12 +124,20 @@ export async function uploadLessonAttachments(
   _supabase: SupabaseClient,
   lessonId: string,
   files: File[],
+  onProgress?: (p: LessonAttachmentUploadProgress) => void,
 ): Promise<{ attachments: LessonAttachmentMeta[]; error?: string }> {
   const uploaded: LessonAttachmentMeta[] = [];
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
     const err = validateAttachmentFile(file);
     if (err) return { attachments: uploaded, error: err };
+
+    onProgress?.({
+      completed: i,
+      total: files.length,
+      activeFile: file.name,
+    });
 
     const fd = new FormData();
     fd.set("lessonId", lessonId);
@@ -157,6 +173,12 @@ export async function uploadLessonAttachments(
 
     uploaded.push(json.attachment);
   }
+
+  onProgress?.({
+    completed: files.length,
+    total: files.length,
+    activeFile: null,
+  });
 
   return { attachments: uploaded };
 }

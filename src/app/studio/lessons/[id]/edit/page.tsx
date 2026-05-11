@@ -11,7 +11,9 @@ import {
   validateAttachmentFile,
   removeAttachmentObject,
   type LessonAttachmentMeta,
+  type LessonAttachmentUploadProgress,
 } from "@/lib/lesson-attachments";
+import { AttachmentUploadProgressBar } from "@/components/attachment-upload-progress";
 import { fetchLessonForStudioEdit } from "@/lib/lesson-hierarchy";
 
 type LessonRow = {
@@ -45,6 +47,8 @@ export default function EditLessonPage() {
   const [published, setPublished] = useState(false);
   const [attachList, setAttachList] = useState<LessonAttachmentMeta[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [attachmentUploadProgress, setAttachmentUploadProgress] =
+    useState<LessonAttachmentUploadProgress | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -81,6 +85,7 @@ export default function EditLessonPage() {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setAttachmentUploadProgress(null);
 
     const trimmedUrl = videoUrl.trim();
     if (!title.trim()) {
@@ -106,39 +111,47 @@ export default function EditLessonPage() {
     }
 
     let merged = attachList;
-    if (pendingFiles.length > 0) {
-      const { attachments: uploaded, error: upMsg } =
-        await uploadLessonAttachments(supabase, id, pendingFiles);
-      if (upMsg) {
-        setError(upMsg);
-        setSaving(false);
+    try {
+      if (pendingFiles.length > 0) {
+        const { attachments: uploaded, error: upMsg } =
+          await uploadLessonAttachments(
+            supabase,
+            id,
+            pendingFiles,
+            (p) => setAttachmentUploadProgress(p),
+          );
+        if (upMsg) {
+          setError(upMsg);
+          return;
+        }
+        merged = [...attachList, ...uploaded];
+        setAttachList(merged);
+        setPendingFiles([]);
+      }
+
+      const embedUrl = toEmbedUrl(trimmedUrl);
+      const { error: uErr } = await supabase
+        .from("Lesson")
+        .update({
+          title: title.trim(),
+          description: description.trim() || null,
+          videoUrl: embedUrl,
+          published,
+          attachments: merged,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (uErr) {
+        setError(uErr.message);
         return;
       }
-      merged = [...attachList, ...uploaded];
-      setAttachList(merged);
-      setPendingFiles([]);
+      router.push("/studio/lessons");
+      router.refresh();
+    } finally {
+      setAttachmentUploadProgress(null);
+      setSaving(false);
     }
-
-    const embedUrl = toEmbedUrl(trimmedUrl);
-    const { error: uErr } = await supabase
-      .from("Lesson")
-      .update({
-        title: title.trim(),
-        description: description.trim() || null,
-        videoUrl: embedUrl,
-        published,
-        attachments: merged,
-        updatedAt: new Date().toISOString(),
-      })
-      .eq("id", id);
-
-    setSaving(false);
-    if (uErr) {
-      setError(uErr.message);
-      return;
-    }
-    router.push("/studio/lessons");
-    router.refresh();
   }
 
   if (loading) {
@@ -292,8 +305,9 @@ export default function EditLessonPage() {
           <input
             type="file"
             multiple
+            disabled={saving}
             accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.png,.jpg,.jpeg,.webp"
-            className="block w-full text-sm text-lum-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-lum-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-lum-on-primary"
+            className="block w-full text-sm text-lum-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-lum-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-lum-on-primary disabled:opacity-50"
             onChange={(e) => {
               const list = e.target.files;
               if (!list?.length) return;
@@ -301,6 +315,9 @@ export default function EditLessonPage() {
               e.target.value = "";
             }}
           />
+          {attachmentUploadProgress ? (
+            <AttachmentUploadProgressBar {...attachmentUploadProgress} />
+          ) : null}
           {pendingFiles.length > 0 ? (
             <ul className="space-y-1 text-sm text-amber-950">
               {pendingFiles.map((f, i) => (
@@ -311,7 +328,8 @@ export default function EditLessonPage() {
                   <span className="truncate">{f.name} (pending upload)</span>
                   <button
                     type="button"
-                    className="font-semibold text-lum-error hover:underline"
+                    disabled={saving}
+                    className="font-semibold text-lum-error hover:underline disabled:opacity-40"
                     onClick={() =>
                       setPendingFiles((prev) => prev.filter((_, j) => j !== i))
                     }
@@ -357,7 +375,11 @@ export default function EditLessonPage() {
             disabled={saving}
             className="lum-btn-primary flex-[2] justify-center py-3 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save changes"}
+            {saving
+              ? attachmentUploadProgress
+                ? "Uploading attachments…"
+                : "Saving…"
+              : "Save changes"}
           </button>
         </div>
       </form>

@@ -8,7 +8,9 @@ import { isPlayableVideoUrl, toEmbedUrl } from "@/lib/video";
 import {
   uploadLessonAttachments,
   validateAttachmentFile,
+  type LessonAttachmentUploadProgress,
 } from "@/lib/lesson-attachments";
+import { AttachmentUploadProgressBar } from "@/components/attachment-upload-progress";
 import { nextLessonSortOrder, nextTopicSortOrder } from "@/lib/content-order";
 
 export default function NewLessonPage() {
@@ -37,6 +39,8 @@ export default function NewLessonPage() {
     description: "",
   });
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentUploadProgress, setAttachmentUploadProgress] =
+    useState<LessonAttachmentUploadProgress | null>(null);
 
   useEffect(() => {
     async function loadSubjects() {
@@ -138,6 +142,7 @@ export default function NewLessonPage() {
   const handleSave = async () => {
     setLoading(true);
     setError(null);
+    setAttachmentUploadProgress(null);
 
     const urlOk =
       lessonData.videoUrl.trim().length > 0 &&
@@ -223,7 +228,12 @@ export default function NewLessonPage() {
 
       if (attachmentFiles.length > 0) {
         const { attachments, error: attErr } =
-          await uploadLessonAttachments(supabase, lessonId, attachmentFiles);
+          await uploadLessonAttachments(
+            supabase,
+            lessonId,
+            attachmentFiles,
+            (p) => setAttachmentUploadProgress(p),
+          );
         if (attErr) throw new Error(attErr);
         if (attachments.length > 0) {
           const { error: updErr } = await supabase
@@ -242,6 +252,7 @@ export default function NewLessonPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not save lesson.");
     } finally {
+      setAttachmentUploadProgress(null);
       setLoading(false);
     }
   };
@@ -488,8 +499,9 @@ export default function NewLessonPage() {
               <input
                 type="file"
                 multiple
+                disabled={loading}
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.png,.jpg,.jpeg,.webp"
-                className="block w-full text-sm text-lum-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-lum-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-lum-on-primary"
+                className="block w-full text-sm text-lum-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-lum-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-lum-on-primary disabled:opacity-50"
                 onChange={(e) => {
                   const list = e.target.files;
                   if (!list?.length) return;
@@ -497,6 +509,9 @@ export default function NewLessonPage() {
                   e.target.value = "";
                 }}
               />
+              {attachmentUploadProgress ? (
+                <AttachmentUploadProgressBar {...attachmentUploadProgress} />
+              ) : null}
               {attachmentFiles.length > 0 ? (
                 <ul className="space-y-1 text-sm text-lum-on-surface-variant">
                   {attachmentFiles.map((f, i) => (
@@ -509,7 +524,8 @@ export default function NewLessonPage() {
                       </span>
                       <button
                         type="button"
-                        className="shrink-0 font-semibold text-lum-error hover:underline"
+                        disabled={loading}
+                        className="shrink-0 font-semibold text-lum-error hover:underline disabled:opacity-40"
                         onClick={() =>
                           setAttachmentFiles((prev) =>
                             prev.filter((_, j) => j !== i),
@@ -527,7 +543,8 @@ export default function NewLessonPage() {
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="flex-1 rounded-lg border border-lum-outline/35 bg-transparent py-3 font-semibold text-lum-on-background hover:bg-lum-surface-container-low"
+                disabled={loading}
+                className="flex-1 rounded-lg border border-lum-outline/35 bg-transparent py-3 font-semibold text-lum-on-background hover:bg-lum-surface-container-low disabled:opacity-50"
               >
                 Back
               </button>
@@ -541,7 +558,11 @@ export default function NewLessonPage() {
                 }
                 className="lum-btn-primary flex-[2] justify-center py-3 disabled:opacity-50"
               >
-                {loading ? "Saving…" : "Create lesson"}
+                {loading
+                  ? attachmentUploadProgress
+                    ? "Uploading attachments…"
+                    : "Saving lesson…"
+                  : "Create lesson"}
               </button>
             </div>
           </div>
