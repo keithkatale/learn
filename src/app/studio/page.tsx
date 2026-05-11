@@ -86,25 +86,36 @@ export default function StudioHomePage() {
     lessons: 0,
     classes: 0,
     subjects: 0,
-    enrollments: 0,
+    /** Distinct users with Enrollment and/or any LearningAccessGrant */
+    learnersWithAccess: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [l, c, s, e] = await Promise.all([
+      const [l, c, s, learnerRes] = await Promise.all([
         supabase.from("Lesson").select("*", { count: "exact", head: true }),
         supabase.from("Class").select("*", { count: "exact", head: true }),
         supabase.from("Subject").select("*", { count: "exact", head: true }),
-        supabase.from("Enrollment").select("*", { count: "exact", head: true }),
+        fetch("/api/studio/dashboard-stats", { credentials: "include" }),
       ]);
+      let learnersWithAccess = 0;
+      if (learnerRes.ok) {
+        const body = (await learnerRes.json()) as {
+          learnersWithAccess?: number;
+        };
+        learnersWithAccess =
+          typeof body.learnersWithAccess === "number"
+            ? body.learnersWithAccess
+            : 0;
+      }
       if (!cancelled) {
         setStats({
           lessons: l.count ?? 0,
           classes: c.count ?? 0,
           subjects: s.count ?? 0,
-          enrollments: e.count ?? 0,
+          learnersWithAccess,
         });
         setLoading(false);
       }
@@ -141,9 +152,9 @@ export default function StudioHomePage() {
     },
     {
       title: "Learners",
-      count: stats.enrollments,
+      count: stats.learnersWithAccess,
       href: "/studio/access",
-      description: "Enrolled students",
+      description: "With access (full catalog or lesson grants)",
       icon: <IconUsers className="h-5 w-5" />,
       accent: "rose",
     },
@@ -280,7 +291,7 @@ export default function StudioHomePage() {
                 title: "Grant access",
                 body: "Enroll learners who can open the Learn area.",
                 href: "/studio/access",
-                done: stats.enrollments > 0,
+                done: stats.learnersWithAccess > 0,
               },
             ].map((item) => (
               <li key={item.step} className="flex gap-4">
