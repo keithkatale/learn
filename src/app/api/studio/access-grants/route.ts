@@ -1,28 +1,11 @@
 import { NextResponse } from "next/server";
-import { canAccessStudio } from "@/lib/creator-access";
 import { isValidUgE164 } from "@/lib/ug-phone";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { assertStudioCreator } from "@/app/api/studio/_assert-creator";
 
 async function assertCreator() {
-  const sb = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await sb.auth.getUser();
-  if (!user?.id) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-
-  const admin = createSupabaseAdminClient();
-  const { data: row } = await admin
-    .from("User")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!canAccessStudio(user.email, row?.role as string | undefined)) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
-  }
-
-  return { userId: user.id, admin };
+  const gate = await assertStudioCreator();
+  if ("error" in gate) return gate;
+  return { userId: gate.userId, admin: gate.admin };
 }
 
 /** List grants with learner phone + lesson title */

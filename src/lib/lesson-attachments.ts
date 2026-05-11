@@ -27,6 +27,40 @@ export const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
   "image/webp",
 ]);
 
+const EXT_TO_MIME: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx":
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx":
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx":
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+/** Browsers often leave `File.type` empty; infer from extension for validation & upload. */
+export function inferMimeFromFileName(name: string): string | null {
+  const lower = name.toLowerCase().trim();
+  const dot = lower.lastIndexOf(".");
+  if (dot < 0) return null;
+  const ext = lower.slice(dot);
+  return EXT_TO_MIME[ext] ?? null;
+}
+
+export function effectiveAttachmentMime(file: File): string {
+  const t = (file.type || "").trim();
+  if (t) return t;
+  return inferMimeFromFileName(file.name) ?? "";
+}
+
 export function maxAttachmentBytes(): number {
   const mb = Number(process.env.NEXT_PUBLIC_MAX_ATTACHMENT_MB ?? "25");
   return (Number.isFinite(mb) ? mb : 25) * 1024 * 1024;
@@ -64,8 +98,9 @@ export function sanitizeStorageFileName(name: string): string {
 }
 
 export function validateAttachmentFile(file: File): string | null {
-  if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(file.type)) {
-    return `File type not allowed: ${file.type || "unknown"}`;
+  const mime = effectiveAttachmentMime(file);
+  if (!mime || !ALLOWED_ATTACHMENT_MIME_TYPES.has(mime)) {
+    return `File type not allowed (${mime || "unknown"}). Use PDF, Word, PowerPoint, Excel, text, markdown, or common images.`;
   }
   if (file.size > maxAttachmentBytes()) {
     return `File too large (max ${Math.round(maxAttachmentBytes() / 1024 / 1024)} MB).`;
@@ -73,51 +108,77 @@ export function validateAttachmentFile(file: File): string | null {
   return null;
 }
 
+/**
+ * Uploads via server API (service role) so Storage RLS does not block creators
+ * who only match NEXT_PUBLIC_CREATOR_EMAIL, and so MIME is handled consistently.
+ */
 export async function uploadLessonAttachments(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   lessonId: string,
   files: File[],
 ): Promise<{ attachments: LessonAttachmentMeta[]; error?: string }> {
-  const bucket = attachmentsBucket();
   const uploaded: LessonAttachmentMeta[] = [];
 
   for (const file of files) {
     const err = validateAttachmentFile(file);
     if (err) return { attachments: uploaded, error: err };
 
-    const safe = sanitizeStorageFileName(file.name);
-    const path = `${lessonId}/${crypto.randomUUID()}_${safe}`;
+    const fd = new FormData();
+    fd.set("lessonId", lessonId);
+    fd.set("file", file);
 
-    const { error: upErr } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type || "application/octet-stream",
-      });
+    const res = await fetch("/api/studio/lesson-attachments/upload", {
+      method: "POST",
+      body: fd,
+      credentials: "include",
+    });
 
-    if (upErr) {
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      attachment?: LessonAttachmentMeta;
+    };
+
+    if (!res.ok) {
       return {
         attachments: uploaded,
-        error: upErr.message,
+        error:
+          typeof json.error === "string"
+            ? json.error
+            : `Upload failed (${res.status}).`,
       };
     }
 
-    uploaded.push({
-      path,
-      label: file.name,
-      mime: file.type || undefined,
-    });
+    if (!json.attachment?.path) {
+      return {
+        attachments: uploaded,
+        error: "Upload response missing attachment metadata.",
+      };
+    }
+
+    uploaded.push(json.attachment);
   }
 
   return { attachments: uploaded };
 }
 
 export async function removeAttachmentObject(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   storagePath: string,
 ): Promise<{ error?: string }> {
-  const bucket = attachmentsBucket();
-  const { error } = await supabase.storage.from(bucket).remove([storagePath]);
-  return { error: error?.message };
+  const res = await fetch("/api/studio/lesson-attachments/remove", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ path: storagePath }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    return {
+      error:
+        typeof json.error === "string"
+          ? json.error
+          : `Remove failed (${res.status}).`,
+    };
+  }
+  return {};
 }

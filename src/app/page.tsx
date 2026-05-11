@@ -108,6 +108,21 @@ export default function Home() {
                 Explore the catalog below — browse anytime; sign in with approved
                 access to watch and download.
               </p>
+              <div className="mx-auto w-full max-w-xl rounded-xl border border-lum-secondary/30 bg-lum-secondary-container/20 px-4 py-3 text-left sm:mx-0 sm:max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lum-secondary">
+                  Pricing
+                </p>
+                <p className="mt-1.5 font-display text-lg font-bold tracking-tight text-lum-on-background sm:text-xl">
+                  UGX 15,000{" "}
+                  <span className="text-base font-semibold text-lum-on-surface-variant sm:text-lg">
+                    per lesson, per year
+                  </span>
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-lum-on-surface-variant sm:text-sm">
+                  15,000 Ugandan Shillings (UGX 15k) for each lesson you unlock —
+                  valid for one year from when access is granted.
+                </p>
+              </div>
               <div className="flex flex-wrap justify-center gap-2 pt-1 sm:justify-start">
                 <Link
                   href="/learn"
@@ -162,7 +177,7 @@ export default function Home() {
               Loading lessons…
             </p>
           ) : error ? (
-            <p className="rounded-lg border border-lum-error/25 bg-lum-error-container/80 px-4 py-3 text-sm text-lum-error">
+            <p className="rounded-lg border border-lum-error/25 bg-lum-error-container/80 px-4 py-3 text-sm leading-relaxed text-lum-error whitespace-pre-wrap">
               {error}
             </p>
           ) : lessons.length === 0 ? (

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { describeSupabaseFetchFailure } from "@/lib/supabase-errors";
 
 /** One published lesson with routing IDs for learner URLs. */
 export type CatalogLessonRow = {
@@ -31,34 +32,47 @@ function lessonHref(
 export async function fetchPublishedLessonCatalog(
   supabase: SupabaseClient,
 ): Promise<{ lessons: CatalogLessonRow[]; error: string | null }> {
-  const { data: lessonRows, error: lErr } = await supabase
-    .from("Lesson")
-    .select("id,title,description,videoUrl,sortOrder,topicId")
-    .eq("published", true);
+  let lessonRows: unknown[] | null = null;
+  try {
+    const res = await supabase
+      .from("Lesson")
+      .select("id,title,description,videoUrl,sortOrder,topicId")
+      .eq("published", true);
 
-  if (lErr) {
-    return { lessons: [], error: lErr.message };
+    if (res.error) {
+      return {
+        lessons: [],
+        error: describeSupabaseFetchFailure(res.error.message),
+      };
+    }
+    lessonRows = res.data as unknown[] | null;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { lessons: [], error: describeSupabaseFetchFailure(msg) };
   }
   if (!lessonRows?.length) {
     return { lessons: [], error: null };
   }
 
+  const typedLessons = lessonRows as { topicId?: string | null }[];
   const topicIds = [
     ...new Set(
-      lessonRows
-        .map((r: { topicId?: string }) => r.topicId)
-        .filter(Boolean),
+      typedLessons
+        .map((r) => r.topicId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
     ),
-  ] as string[];
+  ];
 
   if (topicIds.length === 0) {
     return { lessons: [], error: null };
   }
 
-  const { data: topics, error: tErr } = await supabase
-    .from("Topic")
-    .select(
-      `
+  let topics: unknown[] | null = null;
+  try {
+    const res = await supabase
+      .from("Topic")
+      .select(
+        `
       id,
       name,
       sortOrder,
@@ -68,15 +82,23 @@ export async function fetchPublishedLessonCatalog(
         class:Class(id, name)
       )
     `,
-    )
-    .in("id", topicIds);
+      )
+      .in("id", topicIds);
 
-  if (tErr) {
-    return { lessons: [], error: tErr.message };
+    if (res.error) {
+      return {
+        lessons: [],
+        error: describeSupabaseFetchFailure(res.error.message),
+      };
+    }
+    topics = res.data as unknown[] | null;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { lessons: [], error: describeSupabaseFetchFailure(msg) };
   }
 
   const placementMap = new Map<string, TopicPlacement>();
-  for (const raw of topics ?? []) {
+  for (const raw of topics ?? ([] as unknown[])) {
     const row = raw as { id?: string };
     const id = typeof row.id === "string" ? row.id : "";
     if (!id) continue;
@@ -85,7 +107,7 @@ export async function fetchPublishedLessonCatalog(
   }
 
   const lessons: CatalogLessonRow[] = [];
-  for (const row of lessonRows as {
+  for (const row of typedLessons as {
     id: string;
     title: string;
     description: string | null;
