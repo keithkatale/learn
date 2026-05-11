@@ -31,9 +31,29 @@ export async function POST(request: Request) {
       .eq("phone", phone)
       .maybeSingle();
 
-    if (error || !user?.passwordHash) {
+    if (error) {
       return NextResponse.json(
-        { error: "Invalid phone number or password." },
+        { error: "Sign-in is temporarily unavailable. Try again shortly." },
+        { status: 503 },
+      );
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "No account uses this number yet.",
+          code: "PHONE_NOT_REGISTERED",
+        },
+        { status: 401 },
+      );
+    }
+
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        {
+          error: "This number has no password set yet. Finish signing up on the register page.",
+          code: "PHONE_NOT_REGISTERED",
+        },
         { status: 401 },
       );
     }
@@ -41,7 +61,10 @@ export async function POST(request: Request) {
     const ok = verifyLearnerPassword(password, user.passwordHash);
     if (!ok) {
       return NextResponse.json(
-        { error: "Invalid phone number or password." },
+        {
+          error: "Incorrect password. Check caps lock and try again.",
+          code: "WRONG_PASSWORD",
+        },
         { status: 401 },
       );
     }

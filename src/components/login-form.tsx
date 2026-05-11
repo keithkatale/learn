@@ -25,6 +25,18 @@ export function LoginForm({ isAdmin = false }: { isAdmin?: boolean }) {
 
     if (!isAdmin) {
       const phone = String(fd.get("phone") ?? "").trim();
+      const passwordTrim = password.trim();
+
+      if (!isValidUgE164(phone) && !passwordTrim) {
+        setPending(false);
+        const q = new URLSearchParams();
+        if (callbackUrl && callbackUrl !== "/") {
+          q.set("callbackUrl", callbackUrl);
+        }
+        router.push(`/register${q.size ? `?${q}` : ""}`);
+        return;
+      }
+
       if (!isValidUgE164(phone)) {
         setPending(false);
         setError(
@@ -33,17 +45,33 @@ export function LoginForm({ isAdmin = false }: { isAdmin?: boolean }) {
         return;
       }
 
+      if (!passwordTrim) {
+        setPending(false);
+        setError("Enter your password.");
+        return;
+      }
+
       const res = await fetch("/api/auth/learner/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ phone, password }),
+        body: JSON.stringify({ phone, password: passwordTrim }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
+        code?: string;
       };
       setPending(false);
       if (!res.ok) {
+        if (json.code === "PHONE_NOT_REGISTERED") {
+          const q = new URLSearchParams();
+          q.set("phone", phone);
+          if (callbackUrl && callbackUrl !== "/") {
+            q.set("callbackUrl", callbackUrl);
+          }
+          router.push(`/register?${q}`);
+          return;
+        }
         setError(
           typeof json.error === "string"
             ? json.error

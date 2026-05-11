@@ -4,12 +4,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { UgPhoneInput } from "@/components/ug-phone-input";
-import { isValidUgE164 } from "@/lib/ug-phone";
+import { e164ToUgNationalDigits, isValidUgE164 } from "@/lib/ug-phone";
 
 export function RegisterForm({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const learnerDestination = searchParams.get("callbackUrl") ?? "/";
+  const phoneFromQuery = searchParams.get("phone");
+  const phonePrefillNational = useMemo(() => {
+    const raw = phoneFromQuery?.trim() ?? "";
+    if (!raw || !isValidUgE164(raw)) return "";
+    return e164ToUgNationalDigits(raw);
+  }, [phoneFromQuery]);
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -94,7 +100,11 @@ export function RegisterForm({ isAdmin = false }: { isAdmin?: boolean }) {
             className="lum-input"
           />
         ) : (
-          <UgPhoneInput />
+          <UgPhoneInput
+            initialNationalDigits={
+              phonePrefillNational ? phonePrefillNational : undefined
+            }
+          />
         )}
         <input
           name="password"

@@ -11,6 +11,8 @@ type UgPhoneInputProps = {
   id?: string;
   /** Form field name for E.164 value (+256XXXXXXXXX) */
   name?: string;
+  /** Up to 9 national digits (no leading 0 / 256) — e.g. from `e164ToUgNationalDigits` */
+  initialNationalDigits?: string;
   disabled?: boolean;
   autoComplete?: string;
 };
@@ -18,13 +20,16 @@ type UgPhoneInputProps = {
 export function UgPhoneInput({
   id,
   name = "phone",
+  initialNationalDigits = "",
   disabled,
   autoComplete = "tel-national",
 }: UgPhoneInputProps) {
   const reactId = useId();
   const inputId = id ?? `ug-phone-${reactId.replace(/:/g, "")}`;
   const inputRef = useRef<HTMLInputElement>(null);
-  const [national, setNational] = useState("");
+  const [national, setNational] = useState(() =>
+    parseUgNationalDigits(initialNationalDigits),
+  );
 
   const e164 = ugNationalToE164(national);
   const display = formatUgNationalDisplay(national);

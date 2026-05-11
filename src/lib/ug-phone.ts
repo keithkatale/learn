@@ -34,6 +34,13 @@ export function isValidUgE164(e164: string): boolean {
   return /^\+256\d{9}$/.test(e164.trim());
 }
 
+/** National digits (9) from a valid +256… string; otherwise empty. */
+export function e164ToUgNationalDigits(e164: string): string {
+  const t = e164.trim();
+  if (!isValidUgE164(t)) return "";
+  return t.slice(UG_PHONE_E164_PREFIX.length);
+}
+
 /** Short mask for header UI — keeps last 3 digits visible */
 /**
  * Synthetic email for DBs that still have NOT NULL on `User.email`.
