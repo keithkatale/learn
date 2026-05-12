@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isValidUgE164 } from "@/lib/ug-phone";
 import { assertStudioCreator } from "@/app/api/studio/_assert-creator";
+import { ensureLearnerUserForPhone } from "@/lib/ensure-learner-user";
 
 async function assertCreator() {
   const gate = await assertStudioCreator();
@@ -101,20 +102,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: learner, error: userErr } = await admin
-    .from("User")
-    .select("id")
-    .eq("phone", phone)
-    .maybeSingle();
-
-  if (userErr || !learner) {
-    return NextResponse.json(
-      { error: "No learner account with this phone. They must register first." },
-      { status: 404 },
-    );
+  const ensured = await ensureLearnerUserForPhone(admin, phone);
+  if ("error" in ensured) {
+    return NextResponse.json({ error: ensured.error }, { status: 400 });
   }
-
-  const userId = learner.id as string;
+  const userId = ensured.userId;
   const fullPlatform = body.fullPlatformAccess === true;
   const lessonIds = Array.isArray(body.lessonIds)
     ? [...new Set(body.lessonIds.filter((id) => typeof id === "string" && id.length > 0))]

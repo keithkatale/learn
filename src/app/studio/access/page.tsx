@@ -158,7 +158,8 @@ export default function StudioAccessPage() {
           Grant learners access by <strong>phone number</strong> (Uganda +256).
           Choose <strong>full catalog</strong> or pick individual published
           lessons — access expires on the date you set (default one year).
-          Learners must register on the site first.
+          You can add numbers <strong>before</strong> they register; when they
+          sign up with the same number, access applies automatically.
         </p>
       </div>
 

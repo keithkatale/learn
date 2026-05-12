@@ -30,39 +30,56 @@ export async function POST(request: Request) {
     const admin = createSupabaseAdminClient();
     const { data: existing } = await admin
       .from("User")
-      .select("id")
+      .select("id,passwordHash")
       .eq("phone", phone)
       .maybeSingle();
 
-    if (existing) {
+    const passwordHash = hashLearnerPassword(password);
+
+    if (existing?.passwordHash) {
       return NextResponse.json(
         { error: "An account with this number already exists." },
         { status: 409 },
       );
     }
 
-    const id = crypto.randomUUID();
-    const passwordHash = hashLearnerPassword(password);
-    const email = learnerPlaceholderEmail(phone);
+    let userId: string;
 
-    const { error } = await admin.from("User").insert({
-      id,
-      email,
-      phone,
-      passwordHash,
-      role: "VIEWER",
-    });
+    if (existing && !existing.passwordHash) {
+      userId = existing.id as string;
+      const { error: updErr } = await admin
+        .from("User")
+        .update({ passwordHash })
+        .eq("id", userId);
+      if (updErr) {
+        console.error("[learner/register]", updErr);
+        return NextResponse.json(
+          { error: "Could not finish signup. Try again later." },
+          { status: 500 },
+        );
+      }
+    } else {
+      userId = crypto.randomUUID();
+      const email = learnerPlaceholderEmail(phone);
+      const { error } = await admin.from("User").insert({
+        id: userId,
+        email,
+        phone,
+        passwordHash,
+        role: "VIEWER",
+      });
 
-    if (error) {
-      console.error("[learner/register]", error);
-      return NextResponse.json(
-        { error: "Could not create account. Try again later." },
-        { status: 500 },
-      );
+      if (error) {
+        console.error("[learner/register]", error);
+        return NextResponse.json(
+          { error: "Could not create account. Try again later." },
+          { status: 500 },
+        );
+      }
     }
 
-    const token = await signLearnerSessionToken({ sub: id, phone });
-    const res = NextResponse.json({ ok: true, userId: id });
+    const token = await signLearnerSessionToken({ sub: userId, phone });
+    const res = NextResponse.json({ ok: true, userId });
     res.cookies.set(
       LEARNER_SESSION_COOKIE,
       token,
