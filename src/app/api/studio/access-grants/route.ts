@@ -136,13 +136,24 @@ export async function POST(request: Request) {
 
   if (fullPlatform) {
     await admin.from("LearningAccessGrant").delete().eq("userId", userId);
-    const { error: enErr } = await admin
+
+    const { data: existingEnroll } = await admin
       .from("Enrollment")
-      .upsert({ userId }, { onConflict: "userId" });
-    if (enErr) {
-      console.error("[studio/access-grants POST enrollment]", enErr);
-      return NextResponse.json({ error: enErr.message }, { status: 500 });
+      .select("id")
+      .eq("userId", userId)
+      .maybeSingle();
+
+    if (!existingEnroll) {
+      const { error: enErr } = await admin.from("Enrollment").insert({
+        id: crypto.randomUUID(),
+        userId,
+      });
+      if (enErr) {
+        console.error("[studio/access-grants POST enrollment]", enErr);
+        return NextResponse.json({ error: enErr.message }, { status: 500 });
+      }
     }
+
     return NextResponse.json({ ok: true, mode: "full_platform" });
   }
 
