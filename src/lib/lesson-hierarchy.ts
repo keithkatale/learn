@@ -63,9 +63,9 @@ export async function fetchStudioLessonsWithHierarchy(
       `
       id,
       name,
+      class:Class(name),
       subject:Subject(
-        name,
-        class:Class(name)
+        name
       )
     `,
     )
@@ -155,9 +155,9 @@ export async function fetchLessonForStudioEdit(
     .select(
       `
       name,
+      class:Class(name),
       subject:Subject(
-        name,
-        class:Class(name)
+        name
       )
     `,
     )
@@ -192,7 +192,7 @@ function normalizeTopicHierarchy(raw: unknown): LessonTopicHierarchy | null {
   if (!subjectRaw || typeof subjectRaw !== "object") return null;
   const s = subjectRaw as Record<string, unknown>;
   const subjectName = typeof s.name === "string" ? s.name : "";
-  let classRaw = s.class;
+  let classRaw = t.class;
   if (Array.isArray(classRaw)) classRaw = classRaw[0];
   if (!classRaw || typeof classRaw !== "object") return null;
   const c = classRaw as Record<string, unknown>;

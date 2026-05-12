@@ -38,7 +38,6 @@ export default function LearnSubjectsPage() {
       const { data: allSubjects, error: subErr } = await supabase
         .from("Subject")
         .select("id,name")
-        .eq("classId", classId)
         .order("name");
 
       if (cancelled) return;

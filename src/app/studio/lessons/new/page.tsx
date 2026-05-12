@@ -44,11 +44,8 @@ export default function NewLessonPage() {
 
   useEffect(() => {
     async function loadSubjects() {
-      const { data } = await supabase.from("Subject").select("name");
-      const uniqueNames = Array.from(
-        new Set((data ?? []).map((s) => s.name)),
-      ).sort((a, b) => a.localeCompare(b));
-      setSubjects(uniqueNames);
+      const { data } = await supabase.from("Subject").select("name").order("name");
+      setSubjects((data ?? []).map((s) => s.name));
     }
     loadSubjects();
   }, [supabase]);
@@ -73,7 +70,6 @@ export default function NewLessonPage() {
         .from("Subject")
         .select("id")
         .eq("name", selectedSubjectName)
-        .eq("classId", selectedClassId)
         .maybeSingle();
 
       if (cancelled) return;
@@ -88,6 +84,7 @@ export default function NewLessonPage() {
         .from("Topic")
         .select("id,name,sortOrder")
         .eq("subjectId", subData.id)
+        .eq("classId", selectedClassId)
         .order("sortOrder", { ascending: true })
         .order("name", { ascending: true });
 
@@ -166,7 +163,6 @@ export default function NewLessonPage() {
         .from("Subject")
         .select("id")
         .eq("name", selectedSubjectName.trim())
-        .eq("classId", selectedClassId)
         .maybeSingle();
 
       if (existingSub?.id) {
@@ -177,7 +173,6 @@ export default function NewLessonPage() {
           .insert({
             id: crypto.randomUUID(),
             name: selectedSubjectName.trim(),
-            classId: selectedClassId,
           })
           .select("id")
           .single();
@@ -187,13 +182,18 @@ export default function NewLessonPage() {
 
       let finalTopicId = selectedTopicId;
       if (finalTopicId === "NEW") {
-        const topicSort = await nextTopicSortOrder(supabase, subjectId);
+        const topicSort = await nextTopicSortOrder(
+          supabase,
+          subjectId,
+          selectedClassId,
+        );
         const { data: newTopic, error: topicErr } = await supabase
           .from("Topic")
           .insert({
             id: crypto.randomUUID(),
             name: newTopicName.trim(),
             subjectId,
+            classId: selectedClassId,
             sortOrder: topicSort,
           })
           .select("id")

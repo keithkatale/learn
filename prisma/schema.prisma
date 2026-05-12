@@ -28,16 +28,16 @@ model User {
 }
 
 model Class {
-  id        String    @id @default(uuid())
-  name      String
-  subjects  Subject[]
+  id       String    @id @default(uuid())
+  name     String
+  subjects Subject[]
+  topics   Topic[]
 }
 
 model Subject {
-  id      String  @id @default(uuid())
-  name    String
-  classId String
-  class   Class   @relation(fields: [classId], references: [id])
+  id      String   @id @default(uuid())
+  name    String   @unique
+  classes Class[]
   topics  Topic[]
 }
 
@@ -47,7 +47,9 @@ model Topic {
   /// Chapter index within this subject (1 = first chapter added, etc.)
   sortOrder Int       @default(0)
   subjectId String
+  classId   String
   subject   Subject   @relation(fields: [subjectId], references: [id])
+  class     Class     @relation(fields: [classId], references: [id])
   lessons   Lesson[]
 }
 

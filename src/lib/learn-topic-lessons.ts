@@ -19,11 +19,13 @@ export type TopicWithPublishedLessons = {
 export async function fetchPublishedLessonsBySubject(
   supabase: SupabaseClient,
   subjectId: string,
+  classId: string,
 ): Promise<{ topics: TopicWithPublishedLessons[]; error: string | null }> {
   const { data: topicRows, error: tErr } = await supabase
     .from("Topic")
     .select("id,name,sortOrder")
     .eq("subjectId", subjectId)
+    .eq("classId", classId)
     .order("sortOrder", { ascending: true })
     .order("name", { ascending: true });
 
@@ -94,9 +96,9 @@ export async function fetchBreadcrumbLabelsForTopic(
     .from("Topic")
     .select(
       `
+      class:Class(name),
       subject:Subject(
-        name,
-        class:Class(name)
+        name
       )
     `,
     )
@@ -111,7 +113,7 @@ export async function fetchBreadcrumbLabelsForTopic(
   if (!subjectRaw || typeof subjectRaw !== "object") return null;
   const s = subjectRaw as Record<string, unknown>;
   const subjectName = typeof s.name === "string" ? s.name : "";
-  let classRaw = s.class;
+  let classRaw = t.class;
   if (Array.isArray(classRaw)) classRaw = classRaw[0];
   if (!classRaw || typeof classRaw !== "object") return null;
   const c = classRaw as Record<string, unknown>;

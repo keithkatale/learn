@@ -5,8 +5,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function StudioSubjectsPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
-  const [classId, setClassId] = useState("");
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>(
     [],
   );
@@ -14,48 +12,31 @@ export default function StudioSubjectsPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function loadClasses() {
-      const { data } = await supabase.from("Class").select("id,name").order("name");
-      const list = data ?? [];
-      setClasses(list);
-      setClassId((prev) => {
-        if (prev && list.some((c) => c.id === prev)) return prev;
-        return list[0]?.id ?? "";
-      });
-    }
-    loadClasses();
-  }, [supabase]);
-
-  useEffect(() => {
-    if (!classId) return;
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
         .from("Subject")
         .select("id,name")
-        .eq("classId", classId)
         .order("name");
       if (!cancelled) setSubjects(data ?? []);
     })();
     return () => {
       cancelled = true;
     };
-  }, [supabase, classId]);
+  }, [supabase]);
 
   const add = async () => {
     const name = newName.trim();
-    if (!name || !classId) return;
+    if (!name) return;
     setLoading(true);
     await supabase.from("Subject").insert({
       id: crypto.randomUUID(),
       name,
-      classId,
     });
     setNewName("");
     const { data } = await supabase
       .from("Subject")
       .select("id,name")
-      .eq("classId", classId)
       .order("name");
     setSubjects(data ?? []);
     setLoading(false);
@@ -73,30 +54,9 @@ export default function StudioSubjectsPage() {
           Subjects
         </h1>
         <p className="mt-1 text-sm text-lum-on-surface-variant">
-          Subjects belong to a class. The lesson wizard links subject + class +
-          topic.
+          Subjects are global and shared by all classes. Use the lesson wizard to
+          place topics per class under these shared subjects.
         </p>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-lum-on-background">
-          Class
-        </label>
-        <select
-          value={classId}
-          onChange={(e) => setClassId(e.target.value)}
-          className="lum-input max-w-md w-full"
-        >
-          {classes.length === 0 ? (
-            <option value="">Create a class first</option>
-          ) : (
-            classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))
-          )}
-        </select>
       </div>
 
       <div className="lum-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
@@ -104,13 +64,12 @@ export default function StudioSubjectsPage() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Subject name (e.g. Physics)"
-          disabled={!classId}
-          className="lum-input min-w-0 flex-1 disabled:opacity-50"
+          className="lum-input min-w-0 flex-1"
         />
         <button
           type="button"
           onClick={add}
-          disabled={loading || !classId}
+          disabled={loading}
           className="lum-btn-primary shrink-0 px-5 py-2.5 disabled:opacity-50"
         >
           Add

@@ -97,7 +97,7 @@ export default function LearnLessonsPage() {
       setFetchError(null);
       const [{ topics: rows, error }, { data: cls }, { data: sub }] =
         await Promise.all([
-          fetchPublishedLessonsBySubject(supabase, subjectId),
+          fetchPublishedLessonsBySubject(supabase, subjectId, classId),
           supabase.from("Class").select("name").eq("id", classId).maybeSingle(),
           supabase
             .from("Subject")

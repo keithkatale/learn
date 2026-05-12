@@ -7,53 +7,42 @@ export async function fetchSubjectIdsWithPublishedLessons(
   supabase: SupabaseClient,
   classId: string,
 ): Promise<{ subjectIds: Set<string>; error: string | null }> {
-  const { data: subjects, error: sErr } = await supabase
-    .from("Subject")
-    .select("id")
-    .eq("classId", classId);
-
-  if (sErr) {
-    return { subjectIds: new Set(), error: sErr.message };
-  }
-
-  const subjectIdsInClass = (subjects ?? []).map((s) => s.id);
-  if (subjectIdsInClass.length === 0) {
-    return { subjectIds: new Set(), error: null };
-  }
-
-  const { data: lessonRows, error: lErr } = await supabase
-    .from("Lesson")
-    .select("topicId")
-    .eq("published", true);
-
-  if (lErr) {
-    return { subjectIds: new Set(), error: lErr.message };
-  }
-
-  const topicIdsWithLesson = new Set(
-    (lessonRows ?? [])
-      .map((r) => r.topicId)
-      .filter((id): id is string => typeof id === "string" && id.length > 0),
-  );
-
-  if (topicIdsWithLesson.size === 0) {
-    return { subjectIds: new Set(), error: null };
-  }
-
-  const { data: topicRows, error: tErr } = await supabase
+  const { data: topics, error: tErr } = await supabase
     .from("Topic")
     .select("id,subjectId")
-    .in("subjectId", subjectIdsInClass);
+    .eq("classId", classId);
 
   if (tErr) {
     return { subjectIds: new Set(), error: tErr.message };
   }
 
+  if (!topics?.length) {
+    return { subjectIds: new Set(), error: null };
+  }
+
+  const topicToSubject = new Map<string, string>();
+  for (const t of topics) {
+    if (t.id && t.subjectId) topicToSubject.set(t.id, t.subjectId);
+  }
+  const topicIdsInClass = [...topicToSubject.keys()];
+  if (topicIdsInClass.length === 0) return { subjectIds: new Set(), error: null };
+
+  const { data: lessonRows, error: lErr } = await supabase
+    .from("Lesson")
+    .select("topicId")
+    .eq("published", true)
+    .in("topicId", topicIdsInClass);
+
+  if (lErr) {
+    return { subjectIds: new Set(), error: lErr.message };
+  }
+
   const out = new Set<string>();
-  for (const t of topicRows ?? []) {
-    if (topicIdsWithLesson.has(t.id)) {
-      out.add(t.subjectId);
-    }
+  for (const r of lessonRows ?? []) {
+    const tid = r.topicId;
+    if (!tid) continue;
+    const sid = topicToSubject.get(tid);
+    if (sid) out.add(sid);
   }
 
   return { subjectIds: out, error: null };

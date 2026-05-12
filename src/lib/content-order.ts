@@ -19,11 +19,13 @@ export async function nextLessonSortOrder(
 export async function nextTopicSortOrder(
   supabase: SupabaseClient,
   subjectId: string,
+  classId: string,
 ): Promise<number> {
   const { data, error } = await supabase
     .from("Topic")
     .select("sortOrder")
-    .eq("subjectId", subjectId);
+    .eq("subjectId", subjectId)
+    .eq("classId", classId);
 
   if (error) throw error;
   const max = Math.max(0, ...(data ?? []).map((r) => Number(r.sortOrder) || 0));
