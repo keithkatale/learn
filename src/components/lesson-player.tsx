@@ -1,4 +1,8 @@
-import { isAllowedEmbedUrl, isDirectVideoUrl } from "@/lib/video";
+import {
+  isAllowedEmbedUrl,
+  isDirectVideoUrl,
+  withYoutubeEmbedPlaybackParams,
+} from "@/lib/video";
 
 export function LessonPlayer({
   embedUrl,
@@ -25,13 +29,15 @@ export function LessonPlayer({
     );
   }
 
+  const iframeSrc = withYoutubeEmbedPlaybackParams(embedUrl);
+
   return (
     <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lum-card ring-1 ring-white/10">
       <iframe
         title={title}
-        src={embedUrl}
-        className="h-full w-full"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        src={iframeSrc}
+        className="h-full w-full border-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
         allowFullScreen
       />
     </div>

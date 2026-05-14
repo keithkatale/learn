@@ -24,6 +24,8 @@ export function isAllowedEmbedUrl(url: string): boolean {
       host === "youtube.com" ||
       host === "youtu.be" ||
       host === "m.youtube.com" ||
+      host === "www.youtube-nocookie.com" ||
+      host === "youtube-nocookie.com" ||
       host === "player.vimeo.com"
     );
   } catch {
@@ -75,12 +77,43 @@ export function toEmbedUrl(url: string): string {
     trimmed.match(ytShort) ??
     trimmed.match(ytShorts);
   if (m?.[1]) {
-    return `https://www.youtube.com/embed/${m[1]}`;
+    return withYoutubeEmbedPlaybackParams(
+      `https://www.youtube.com/embed/${m[1]}`,
+    );
   }
   const vimeo = /vimeo\.com\/(?:video\/)?(\d+)/;
   const vm = trimmed.match(vimeo);
   if (vm?.[1]) {
     return `https://player.vimeo.com/video/${vm[1]}`;
   }
-  return trimmed;
+  return withYoutubeEmbedPlaybackParams(trimmed);
+}
+
+const YOUTUBE_EMBED_HOSTS = new Set([
+  "www.youtube.com",
+  "youtube.com",
+  "m.youtube.com",
+  "www.youtube-nocookie.com",
+  "youtube-nocookie.com",
+]);
+
+/**
+ * YouTube embeds on iPhone otherwise open the YouTube app / leave the page.
+ * `playsinline=1` tells the embedded player to stay inline inside the iframe.
+ * Call when saving URLs and again at render time so older rows still work.
+ */
+export function withYoutubeEmbedPlaybackParams(url: string): string {
+  const trimmed = url.trim();
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol !== "https:") return trimmed;
+    if (!YOUTUBE_EMBED_HOSTS.has(u.hostname.toLowerCase())) return trimmed;
+    if (!u.pathname.startsWith("/embed/")) return trimmed;
+    if (!u.searchParams.has("playsinline")) {
+      u.searchParams.set("playsinline", "1");
+    }
+    return u.toString();
+  } catch {
+    return trimmed;
+  }
 }
