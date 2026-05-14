@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
+import { LearnerActivityBeacon } from "@/components/learner-activity-beacon";
 import "./globals.css";
 
 const inter = Inter({
@@ -42,6 +43,7 @@ export default function RootLayout({
       className={`${inter.variable} ${montserrat.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
+        <LearnerActivityBeacon />
         <SiteHeader />
         <main className="flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]">
           {children}

@@ -15,16 +15,35 @@ enum Role {
 model User {
   id           String                 @id
   name         String?
-  /// Creators: real email. Learners (phone auth) may use null after migration, or a phone-derived placeholder.
+  /// Creators: real email. Learners (phone auth) may be null after migration, or a phone-derived placeholder.
   email        String?                @unique
   /// Learners: E.164; creators using Supabase email auth may omit
   phone        String?                @unique
   /// Bcrypt hash for learner (phone) accounts — null for Supabase-only creators
   passwordHash String?
   role         Role                   @default(VIEWER)
+  /// Last time the learner hit the activity beacon while signed in (phone JWT).
+  lastSeenAt   DateTime?
+  /// Friendly label the studio admin assigns (e.g. student name) for access / analytics lists.
+  instructorLabel String?
   enrollment   Enrollment?
   lessonGrants LearningAccessGrant[]
+  visitSessions LearnerVisitSession[]
   createdAt    DateTime               @default(now())
+}
+
+/// Browsing session for time-on-platform (30 min idle closes a session).
+model LearnerVisitSession {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt        DateTime  @default(now())
+  lastActivityAt   DateTime  @default(now())
+  endedAt          DateTime?
+  durationSeconds  Int?
+
+  @@index([userId])
+  @@index([lastActivityAt])
 }
 
 model Class {

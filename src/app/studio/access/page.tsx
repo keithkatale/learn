@@ -8,6 +8,7 @@ import {
   type LessonWithHierarchy,
 } from "@/lib/lesson-hierarchy";
 import { isValidUgE164 } from "@/lib/ug-phone";
+import { StudioLearnerLabelEditor } from "@/components/studio-learner-label-editor";
 
 type GrantRow = {
   id: string;
@@ -26,11 +27,33 @@ type FullRow = {
   phone: string | null;
 };
 
+type LearnerInsight = {
+  userId: string;
+  phone: string | null;
+  instructorLabel: string | null;
+  accountCreatedAt: string | null;
+  registered: boolean;
+  lastSeenAt: string | null;
+  hasVisitedPlatform: boolean;
+  totalVisitSeconds: number;
+};
+
+function formatVisitSeconds(sec: number): string {
+  if (sec <= 0) return "—";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m${s > 0 ? ` ${s}s` : ""}`;
+  return `${s}s`;
+}
+
 export default function StudioAccessPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [lessons, setLessons] = useState<LessonWithHierarchy[]>([]);
   const [grants, setGrants] = useState<GrantRow[]>([]);
   const [fullUsers, setFullUsers] = useState<FullRow[]>([]);
+  const [learnerInsights, setLearnerInsights] = useState<LearnerInsight[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -56,9 +79,11 @@ export default function StudioAccessPage() {
       const data = (await grantsRes.json()) as {
         grants?: GrantRow[];
         fullAccessUsers?: FullRow[];
+        learnerInsights?: LearnerInsight[];
       };
       setGrants(data.grants ?? []);
       setFullUsers(data.fullAccessUsers ?? []);
+      setLearnerInsights(data.learnerInsights ?? []);
     } else {
       const err = await grantsRes.json().catch(() => ({}));
       setError(
@@ -162,6 +187,88 @@ export default function StudioAccessPage() {
           sign up with the same number, access applies automatically.
         </p>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-lum-on-background">
+          Learner visits &amp; labels
+        </h2>
+        <p className="max-w-3xl text-xs leading-relaxed text-lum-on-surface-variant">
+          Names here are for your reference only (not shown to learners). Visit
+          times come from short pings while a learner is signed in on the site;
+          idle for 30 minutes starts a new visit. Run the SQL migration{" "}
+          <span className="font-mono text-lum-primary">
+            prisma/migrations/20260513_learner_activity/migration.sql
+          </span>{" "}
+          in Supabase if this table is empty or you see fetch errors.
+        </p>
+        {loading ? (
+          <p className="text-sm text-lum-on-surface-variant">Loading…</p>
+        ) : learnerInsights.length === 0 ? (
+          <p className="text-sm text-lum-on-surface-variant">
+            No learners with access yet. Grant full catalog or lesson access
+            above — pre-registered numbers appear here too.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-lum-outline/20 shadow-lum-card">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-lum-outline/20 bg-lum-surface-container-low/80 text-xs font-bold uppercase tracking-wide text-lum-on-surface-variant">
+                  <th className="px-3 py-3">Your label</th>
+                  <th className="px-3 py-3">Phone</th>
+                  <th className="px-3 py-3">Account</th>
+                  <th className="px-3 py-3">Visited site</th>
+                  <th className="px-3 py-3">Last visit</th>
+                  <th className="px-3 py-3">Time on site</th>
+                </tr>
+              </thead>
+              <tbody>
+                {learnerInsights.map((row) => (
+                  <tr
+                    key={row.userId}
+                    className="border-b border-lum-outline/15 last:border-0"
+                  >
+                    <td className="px-3 py-3 align-top">
+                      <StudioLearnerLabelEditor
+                        userId={row.userId}
+                        initialLabel={row.instructorLabel ?? ""}
+                        disabled={submitting}
+                        onSaved={() => void reloadLists()}
+                      />
+                    </td>
+                    <td className="px-3 py-3 font-mono text-lum-on-background">
+                      {row.phone ?? "—"}
+                    </td>
+                    <td className="px-3 py-3 text-lum-on-surface-variant">
+                      {row.registered ? (
+                        <span className="font-medium text-lum-secondary">
+                          Registered
+                        </span>
+                      ) : (
+                        <span className="text-amber-900">Pending signup</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      {row.hasVisitedPlatform ? (
+                        <span className="font-medium text-lum-secondary">Yes</span>
+                      ) : (
+                        <span className="text-lum-on-surface-variant">Not yet</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-lum-on-surface-variant">
+                      {row.lastSeenAt
+                        ? new Date(row.lastSeenAt).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-3 text-lum-on-background">
+                      {formatVisitSeconds(row.totalVisitSeconds)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <form
         onSubmit={onSubmit}
