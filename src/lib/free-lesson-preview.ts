@@ -1,6 +1,6 @@
 /**
- * One free “chapter intro” lesson per topic for anonymous + unpaid learners.
- * Picks the published lesson with the smallest sortOrder in that topic (ties → stable id).
+ * Pick the published lesson with the smallest sortOrder in a topic (ties → stable id).
+ * Used when resolving the single class-wide preview chapter’s first lesson.
  */
 
 export function topicPublicPreviewLessonId(

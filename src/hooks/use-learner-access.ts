@@ -19,7 +19,8 @@ type ContextJson =
 
 /**
  * Lesson playback: full catalog (Enrollment), scoped grants, studio preview,
- * or anonymous Senior 1 sample lesson via `canWatchLesson(id, freePreview)`.
+ * or one class-wide preview lesson (first lesson of first chapter in the class)
+ * via `canWatchLesson(id, freePreview)`.
  */
 export function useLearnerAccess(supabase: SupabaseClient) {
   const pathname = usePathname();

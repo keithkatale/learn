@@ -13,7 +13,7 @@ import {
   LearnBreadcrumbs,
   type BreadcrumbItem,
 } from "@/components/learn-breadcrumbs";
-import { topicPublicPreviewLessonId } from "@/lib/free-lesson-preview";
+import { fetchClassFreePreviewLessonId } from "@/lib/class-free-preview";
 
 function LessonBrowseCard({
   href,
@@ -88,6 +88,10 @@ export default function LearnLessonsPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [className, setClassName] = useState("");
   const [subjectName, setSubjectName] = useState("");
+  const [classPreviewLessonId, setClassPreviewLessonId] = useState<
+    string | null
+  >(null);
+  const [previewResolved, setPreviewResolved] = useState(false);
 
   useEffect(() => {
     if (!subjectId || !classId) return;
@@ -95,26 +99,33 @@ export default function LearnLessonsPage() {
     void (async () => {
       setTopicsLoading(true);
       setFetchError(null);
-      const [{ topics: rows, error }, { data: cls }, { data: sub }] =
-        await Promise.all([
-          fetchPublishedLessonsBySubject(supabase, subjectId, classId),
-          supabase.from("Class").select("name").eq("id", classId).maybeSingle(),
-          supabase
-            .from("Subject")
-            .select("name")
-            .eq("id", subjectId)
-            .maybeSingle(),
-        ]);
-      if (cancelled) return;
-      if (error) {
-        setFetchError(error);
-        setTopics([]);
-      } else {
-        setTopics(rows);
+      setPreviewResolved(false);
+      try {
+        const [{ topics: rows, error }, { data: cls }, { data: sub }, preview] =
+          await Promise.all([
+            fetchPublishedLessonsBySubject(supabase, subjectId, classId),
+            supabase.from("Class").select("name").eq("id", classId).maybeSingle(),
+            supabase
+              .from("Subject")
+              .select("name")
+              .eq("id", subjectId)
+              .maybeSingle(),
+            fetchClassFreePreviewLessonId(supabase, classId),
+          ]);
+        if (cancelled) return;
+        setClassPreviewLessonId(preview.lessonId);
+        if (error) {
+          setFetchError(error);
+          setTopics([]);
+        } else {
+          setTopics(rows);
+        }
+        setClassName(cls?.name ?? "");
+        setSubjectName(sub?.name ?? "");
+      } finally {
+        setTopicsLoading(false);
+        setPreviewResolved(true);
       }
-      setClassName(cls?.name ?? "");
-      setSubjectName(sub?.name ?? "");
-      setTopicsLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -131,7 +142,7 @@ export default function LearnLessonsPage() {
 
   function browseLockReason(): string {
     if (!userId) {
-      return "Sign in so your instructor can tie access to your phone number.";
+      return "Without an account and instructor access, only the first lesson in the first chapter of this class is open. Sign in so your instructor can unlock more.";
     }
     if (accessKind === "partial") {
       return "Not on your paid list — open the lesson page to message your instructor.";
@@ -156,7 +167,7 @@ export default function LearnLessonsPage() {
     { label: subjectName || "Subject" },
   ];
 
-  if (topicsLoading || !authReady) {
+  if (topicsLoading || !authReady || !previewResolved) {
     return (
       <div className="space-y-6">
         <LearnBreadcrumbs
@@ -218,7 +229,7 @@ export default function LearnLessonsPage() {
                 —{" "}
                 {accessKind === "partial"
                   ? "Only lessons marked Open below match your plan. Others stay locked until your instructor adds them."
-                  : "Each chapter lists one sample lesson as Open (lowest lesson number in that chapter). Other lessons stay locked until your instructor grants access."}
+                  : "Without full access, only the first lesson in the first chapter of this class is open. Ask your instructor to unlock the rest."}
               </span>
             </div>
           ) : null}
@@ -226,9 +237,8 @@ export default function LearnLessonsPage() {
           {topics.map((topic) => {
             const lessons = topic.lessons;
             if (lessons.length === 0) return null;
-            const previewLessonId = topicPublicPreviewLessonId(
-              lessons.map((l) => ({ id: l.id, sortOrder: l.sortOrder })),
-            );
+            const qualifiesForPublicSample =
+              accessKind === "anon" || accessKind === "none";
             return (
               <div key={topic.id} className="space-y-4">
                 <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-lum-secondary">
@@ -237,8 +247,9 @@ export default function LearnLessonsPage() {
                 <div className="grid gap-3">
                   {lessons.map((lesson) => {
                     const freePreview =
-                      previewLessonId !== null &&
-                      lesson.id === previewLessonId;
+                      qualifiesForPublicSample &&
+                      classPreviewLessonId !== null &&
+                      lesson.id === classPreviewLessonId;
                     const open = authReady
                       ? canWatchLesson(lesson.id, freePreview)
                       : freePreview;

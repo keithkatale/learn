@@ -9,7 +9,7 @@ import { LessonLockedPanel } from "@/components/lesson-locked-panel";
 import Link from "next/link";
 import { useLearnerAccess } from "@/hooks/use-learner-access";
 import { fetchBreadcrumbLabelsForTopic } from "@/lib/learn-topic-lessons";
-import { isLessonTopicPublicPreview } from "@/lib/free-lesson-preview";
+import { fetchClassFreePreviewLessonId } from "@/lib/class-free-preview";
 import {
   LearnBreadcrumbs,
   type BreadcrumbItem,
@@ -60,6 +60,7 @@ export default function LessonDetailPage() {
     grantCount,
     grantedLessonIds,
     canWatchLesson,
+    accessKind,
   } = useLearnerAccess(supabase);
 
   const [lesson, setLesson] = useState<{
@@ -77,9 +78,10 @@ export default function LessonDetailPage() {
     className: string;
     subjectName: string;
   } | null>(null);
-  const [topicPublishedLessons, setTopicPublishedLessons] = useState<
-    { id: string; sortOrder: number }[]
-  >([]);
+  const [classPreviewLessonId, setClassPreviewLessonId] = useState<
+    string | null
+  >(null);
+  const [previewResolved, setPreviewResolved] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
@@ -92,7 +94,6 @@ export default function LessonDetailPage() {
     void (async () => {
       setLessonLoading(true);
       setCrumbLabels(null);
-      setTopicPublishedLessons([]);
       const { data } = await supabase
         .from("Lesson")
         .select(
@@ -116,22 +117,8 @@ export default function LessonDetailPage() {
           data.topicId,
         );
         if (!cancelled) setCrumbLabels(labels);
-
-        const { data: sibs } = await supabase
-          .from("Lesson")
-          .select("id,sortOrder")
-          .eq("topicId", data.topicId)
-          .eq("published", true);
-        if (!cancelled) {
-          setTopicPublishedLessons(
-            (sibs ?? []).map((r: { id: string; sortOrder: number }) => ({
-              id: r.id,
-              sortOrder: typeof r.sortOrder === "number" ? r.sortOrder : 0,
-            })),
-          );
-        }
       } else if (!cancelled) {
-        setTopicPublishedLessons([]);
+        setCrumbLabels(null);
       }
       setLessonLoading(false);
     })();
@@ -140,10 +127,42 @@ export default function LessonDetailPage() {
     };
   }, [lessonId, supabase]);
 
+  useEffect(() => {
+    if (!classId) {
+      setClassPreviewLessonId(null);
+      setPreviewResolved(true);
+      return;
+    }
+    let cancelled = false;
+    setPreviewResolved(false);
+    void (async () => {
+      setPreviewResolved(false);
+      try {
+        const { lessonId: previewLesson } = await fetchClassFreePreviewLessonId(
+          supabase,
+          classId,
+        );
+        if (!cancelled) {
+          setClassPreviewLessonId(previewLesson);
+        }
+      } finally {
+        setPreviewResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, supabase]);
+
+  const qualifiesForPublicSample =
+    accessKind === "anon" || accessKind === "none";
+
   const freePreview = Boolean(
     lesson?.published &&
-      lesson &&
-      isLessonTopicPublicPreview(topicPublishedLessons, lessonId),
+      previewResolved &&
+      qualifiesForPublicSample &&
+      classPreviewLessonId !== null &&
+      lessonId === classPreviewLessonId,
   );
 
   const hasLessonGrant =
@@ -153,7 +172,7 @@ export default function LessonDetailPage() {
     !!lesson?.published &&
     canWatchLesson(lessonId, freePreview);
 
-  if (lessonLoading || !authReady) {
+  if (lessonLoading || !authReady || !previewResolved) {
     const loadingCrumbs: BreadcrumbItem[] = [
       { label: "Home", href: "/" },
       { label: "Learn", href: "/learn" },
