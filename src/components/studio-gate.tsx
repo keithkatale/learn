@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { canAccessStudio } from "@/lib/creator-access";
+import { LoadingBlock } from "@/components/loading-spinner";
 
 export function StudioGate({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -41,9 +42,10 @@ export function StudioGate({ children }: { children: React.ReactNode }) {
 
   if (status !== "allowed") {
     return (
-      <div className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-20 text-center text-sm text-lum-on-surface-variant">
-        Verifying creator access…
-      </div>
+      <LoadingBlock
+        label="Verifying creator access"
+        className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-20"
+      />
     );
   }
 

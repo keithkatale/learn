@@ -13,6 +13,7 @@ import {
   LearnBreadcrumbs,
   type BreadcrumbItem,
 } from "@/components/learn-breadcrumbs";
+import { LoadingBlock } from "@/components/loading-spinner";
 import { LessonBrowseCard } from "@/components/lesson-browse-card";
 import { fetchClassFreePreviewLessonId } from "@/lib/class-free-preview";
 
@@ -132,9 +133,7 @@ export default function LearnLessonsPage() {
             { label: "Lessons" },
           ]}
         />
-        <div className="py-16 text-center text-sm text-lum-on-surface-variant">
-          Loading lessons…
-        </div>
+        <LoadingBlock label="Loading lessons" className="py-16" />
       </div>
     );
   }

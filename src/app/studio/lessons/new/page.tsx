@@ -11,6 +11,7 @@ import {
   type LessonAttachmentUploadProgress,
 } from "@/lib/lesson-attachments";
 import { AttachmentUploadProgressBar } from "@/components/attachment-upload-progress";
+import { LoadingBlock, LoadingSpinner } from "@/components/loading-spinner";
 import { nextLessonSortOrder, nextTopicSortOrder } from "@/lib/content-order";
 
 export default function NewLessonPage() {
@@ -383,9 +384,7 @@ export default function NewLessonPage() {
             yet.
           </p>
           {topicsLoading ? (
-            <div className="py-12 text-center text-sm text-lum-on-surface-variant">
-              Loading topics…
-            </div>
+            <LoadingBlock label="Loading topics" className="py-12" />
           ) : (
             <div className="grid gap-3">
               {topics.map((t) => (
@@ -556,13 +555,20 @@ export default function NewLessonPage() {
                   !lessonData.title.trim() ||
                   !lessonData.videoUrl.trim()
                 }
-                className="lum-btn-primary flex-[2] justify-center py-3 disabled:opacity-50"
+                className="lum-btn-primary flex-[2] inline-flex items-center justify-center gap-2 py-3 disabled:opacity-50"
               >
-                {loading
-                  ? attachmentUploadProgress
-                    ? "Uploading attachments…"
-                    : "Saving lesson…"
-                  : "Create lesson"}
+                {loading ? (
+                  <>
+                    <LoadingSpinner size="sm" variant="onPrimary" aria-hidden />
+                    <span>
+                      {attachmentUploadProgress
+                        ? "Uploading attachments…"
+                        : "Saving lesson…"}
+                    </span>
+                  </>
+                ) : (
+                  "Create lesson"
+                )}
               </button>
             </div>
           </div>

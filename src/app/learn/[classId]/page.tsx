@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { fetchSubjectIdsWithPublishedLessons } from "@/lib/learn-subjects";
+import { LoadingBlock } from "@/components/loading-spinner";
 import {
   LearnBreadcrumbs,
   type BreadcrumbItem,
@@ -97,7 +98,7 @@ export default function LearnSubjectsPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-lum-on-surface-variant">Loading subjects…</p>
+        <LoadingBlock label="Loading subjects" className="py-8" />
       ) : subjects.length === 0 ? (
         <div className="lum-card max-w-lg p-6">
           <p className="font-medium text-lum-on-background">

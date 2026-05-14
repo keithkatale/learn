@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadingSpinner } from "@/components/loading-spinner";
 
 export function StudioLearnerLabelEditor({
   userId,
@@ -50,9 +51,16 @@ export function StudioLearnerLabelEditor({
         type="button"
         disabled={disabled || saving || value.trim() === (initialLabel || "").trim()}
         onClick={() => void save()}
-        className="rounded-lg border border-lum-outline/35 px-3 py-1.5 text-xs font-semibold text-lum-on-background hover:bg-lum-surface-container-low disabled:opacity-40"
+        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-lum-outline/35 px-3 py-1.5 text-xs font-semibold text-lum-on-background hover:bg-lum-surface-container-low disabled:opacity-40"
       >
-        {saving ? "…" : "Save"}
+        {saving ? (
+          <>
+            <LoadingSpinner size="sm" aria-hidden />
+            <span className="sr-only">Saving</span>
+          </>
+        ) : (
+          "Save"
+        )}
       </button>
     </div>
   );

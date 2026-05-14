@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { UgPhoneInput } from "@/components/ug-phone-input";
+import { LoadingSpinner } from "@/components/loading-spinner";
 import { isValidUgE164 } from "@/lib/ug-phone";
 
 export function LoginForm({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -126,8 +127,19 @@ export function LoginForm({ isAdmin = false }: { isAdmin?: boolean }) {
             {error}
           </p>
         ) : null}
-        <button type="submit" disabled={pending} className="lum-btn-primary w-full">
-          {pending ? "Signing in..." : "Sign in"}
+        <button
+          type="submit"
+          disabled={pending}
+          className="lum-btn-primary inline-flex w-full items-center justify-center gap-2"
+        >
+          {pending ? (
+            <>
+              <LoadingSpinner size="sm" variant="onPrimary" aria-hidden />
+              <span>Signing in…</span>
+            </>
+          ) : (
+            "Sign in"
+          )}
         </button>
       </form>
     </div>

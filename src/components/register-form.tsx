@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { UgPhoneInput } from "@/components/ug-phone-input";
+import { LoadingSpinner } from "@/components/loading-spinner";
 import { e164ToUgNationalDigits, isValidUgE164 } from "@/lib/ug-phone";
 
 export function RegisterForm({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -119,8 +120,19 @@ export function RegisterForm({ isAdmin = false }: { isAdmin?: boolean }) {
             {error}
           </p>
         ) : null}
-        <button type="submit" disabled={pending} className="lum-btn-primary w-full">
-          {pending ? "Creating..." : "Create account"}
+        <button
+          type="submit"
+          disabled={pending}
+          className="lum-btn-primary inline-flex w-full items-center justify-center gap-2"
+        >
+          {pending ? (
+            <>
+              <LoadingSpinner size="sm" variant="onPrimary" aria-hidden />
+              <span>Creating…</span>
+            </>
+          ) : (
+            "Create account"
+          )}
         </button>
       </form>
     </div>

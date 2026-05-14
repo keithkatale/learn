@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useLearnerAccess } from "@/hooks/use-learner-access";
 import { fetchBreadcrumbLabelsForTopic } from "@/lib/learn-topic-lessons";
 import { fetchClassFreePreviewLessonId } from "@/lib/class-free-preview";
+import { LoadingBlock } from "@/components/loading-spinner";
 import {
   LearnBreadcrumbs,
   type BreadcrumbItem,
@@ -190,9 +191,7 @@ export default function LessonDetailPage() {
     return (
       <div className="space-y-6">
         <LearnBreadcrumbs items={loadingCrumbs} />
-        <div className="py-16 text-center text-sm text-lum-on-surface-variant">
-          Loading lesson…
-        </div>
+        <LoadingBlock label="Loading lesson" className="py-16" />
       </div>
     );
   }

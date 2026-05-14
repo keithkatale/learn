@@ -6,6 +6,7 @@ import {
   fetchStudioLessonsWithHierarchy,
   type LessonWithHierarchy,
 } from "@/lib/lesson-hierarchy";
+import { LoadingBlock } from "@/components/loading-spinner";
 import Link from "next/link";
 
 export default function StudioLessonsPage() {
@@ -56,9 +57,7 @@ export default function StudioLessonsPage() {
       ) : null}
 
       {loading ? (
-        <div className="py-20 text-center text-lum-on-surface-variant">
-          Loading curriculum…
-        </div>
+        <LoadingBlock label="Loading curriculum" className="py-20" />
       ) : lessons.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-lum-outline/30 bg-lum-surface-container-low/60 py-20 text-center">
           <p className="text-lum-on-surface-variant">No lessons created yet.</p>

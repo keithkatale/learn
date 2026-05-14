@@ -14,6 +14,7 @@ import {
   type LessonAttachmentUploadProgress,
 } from "@/lib/lesson-attachments";
 import { AttachmentUploadProgressBar } from "@/components/attachment-upload-progress";
+import { LoadingBlock, LoadingSpinner } from "@/components/loading-spinner";
 import { fetchLessonForStudioEdit } from "@/lib/lesson-hierarchy";
 
 type LessonRow = {
@@ -156,9 +157,7 @@ export default function EditLessonPage() {
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-sm text-lum-on-surface-variant">
-        Loading lesson…
-      </div>
+      <LoadingBlock label="Loading lesson" className="py-20" />
     );
   }
 
@@ -373,13 +372,20 @@ export default function EditLessonPage() {
           <button
             type="submit"
             disabled={saving}
-            className="lum-btn-primary flex-[2] justify-center py-3 disabled:opacity-50"
+            className="lum-btn-primary flex-[2] inline-flex items-center justify-center gap-2 py-3 disabled:opacity-50"
           >
-            {saving
-              ? attachmentUploadProgress
-                ? "Uploading attachments…"
-                : "Saving…"
-              : "Save changes"}
+            {saving ? (
+              <>
+                <LoadingSpinner size="sm" variant="onPrimary" aria-hidden />
+                <span>
+                  {attachmentUploadProgress
+                    ? "Uploading attachments…"
+                    : "Saving…"}
+                </span>
+              </>
+            ) : (
+              "Save changes"
+            )}
           </button>
         </div>
       </form>

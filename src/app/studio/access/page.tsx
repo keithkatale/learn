@@ -9,6 +9,7 @@ import {
 } from "@/lib/lesson-hierarchy";
 import { isValidUgE164 } from "@/lib/ug-phone";
 import { StudioLearnerLabelEditor } from "@/components/studio-learner-label-editor";
+import { LoadingSpinner } from "@/components/loading-spinner";
 
 type GrantRow = {
   id: string;
@@ -202,7 +203,9 @@ export default function StudioAccessPage() {
           in Supabase if this table is empty or you see fetch errors.
         </p>
         {loading ? (
-          <p className="text-sm text-lum-on-surface-variant">Loading…</p>
+          <div className="flex items-center gap-2 py-2" role="status" aria-label="Loading">
+            <LoadingSpinner size="sm" aria-hidden />
+          </div>
         ) : learnerInsights.length === 0 ? (
           <p className="text-sm text-lum-on-surface-variant">
             No learners with access yet. Grant full catalog or lesson access
@@ -362,9 +365,16 @@ export default function StudioAccessPage() {
         <button
           type="submit"
           disabled={submitting || loading}
-          className="lum-btn-primary px-6 py-2.5 disabled:opacity-60"
+          className="lum-btn-primary inline-flex items-center justify-center gap-2 px-6 py-2.5 disabled:opacity-60"
         >
-          {submitting ? "Saving…" : "Save access"}
+          {submitting ? (
+            <>
+              <LoadingSpinner size="sm" variant="onPrimary" aria-hidden />
+              <span>Saving…</span>
+            </>
+          ) : (
+            "Save access"
+          )}
         </button>
       </form>
 
@@ -373,7 +383,9 @@ export default function StudioAccessPage() {
           Full catalog learners
         </h2>
         {loading ? (
-          <p className="text-sm text-lum-on-surface-variant">Loading…</p>
+          <div className="flex items-center gap-2 py-2" role="status" aria-label="Loading">
+            <LoadingSpinner size="sm" aria-hidden />
+          </div>
         ) : fullUsers.length === 0 ? (
           <p className="text-sm text-lum-on-surface-variant">None yet.</p>
         ) : (
@@ -405,7 +417,9 @@ export default function StudioAccessPage() {
           Lesson-specific grants
         </h2>
         {loading ? (
-          <p className="text-sm text-lum-on-surface-variant">Loading…</p>
+          <div className="flex items-center gap-2 py-2" role="status" aria-label="Loading">
+            <LoadingSpinner size="sm" aria-hidden />
+          </div>
         ) : grants.length === 0 ? (
           <p className="text-sm text-lum-on-surface-variant">None yet.</p>
         ) : (

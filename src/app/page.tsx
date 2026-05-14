@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { LoadingBlock } from "@/components/loading-spinner";
 import { LearnBreadcrumbs, type BreadcrumbItem } from "@/components/learn-breadcrumbs";
 import { LessonBrowseCard } from "@/components/lesson-browse-card";
 import { useClientSignedIn } from "@/hooks/use-client-signed-in";
@@ -267,7 +268,7 @@ export default function Home() {
                 <p className="mt-1.5 font-display text-lg font-bold tracking-tight text-lum-on-background sm:text-xl">
                   UGX 15,000{" "}
                   <span className="text-base font-semibold text-lum-on-surface-variant sm:text-lg">
-                    per lesson, per year
+                    per lesson
                   </span>
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-lum-on-surface-variant sm:text-sm">
@@ -324,9 +325,7 @@ export default function Home() {
                 </Link>
               </div>
               {classesLoading ? (
-                <p className="text-sm text-lum-on-surface-variant">
-                  Loading classes…
-                </p>
+                <LoadingBlock label="Loading classes" className="py-12" />
               ) : classes.length === 0 ? (
                 <p className="text-sm text-lum-on-surface-variant">
                   No classes yet — your instructor will add them in Studio.
@@ -373,9 +372,7 @@ export default function Home() {
                 </p>
               </div>
               {subjectsLoading ? (
-                <p className="text-sm text-lum-on-surface-variant">
-                  Loading subjects…
-                </p>
+                <LoadingBlock label="Loading subjects" className="py-12" />
               ) : subjects.length === 0 ? (
                 <div className="lum-card max-w-lg p-6">
                   <p className="font-medium text-lum-on-background">
@@ -407,9 +404,7 @@ export default function Home() {
               )}
             </>
           ) : !lessonsReady ? (
-            <div className="py-16 text-center text-sm text-lum-on-surface-variant">
-              Loading lessons…
-            </div>
+            <LoadingBlock label="Loading lessons" className="py-16" />
           ) : (
             <>
               <button

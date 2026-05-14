@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { LoadingSpinner } from "@/components/loading-spinner";
 
 export default function StudioSubjectsPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -70,9 +71,16 @@ export default function StudioSubjectsPage() {
           type="button"
           onClick={add}
           disabled={loading}
-          className="lum-btn-primary shrink-0 px-5 py-2.5 disabled:opacity-50"
+          className="lum-btn-primary inline-flex shrink-0 items-center justify-center gap-2 px-5 py-2.5 disabled:opacity-50"
         >
-          Add
+          {loading ? (
+            <>
+              <LoadingSpinner size="sm" variant="onPrimary" aria-hidden />
+              <span className="sr-only">Adding</span>
+            </>
+          ) : (
+            "Add"
+          )}
         </button>
       </div>
 

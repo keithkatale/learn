@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactElement, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { LoadingSpinner } from "@/components/loading-spinner";
 
 function IconBook(props: SVGProps<SVGSVGElement>) {
   return (
@@ -205,11 +206,19 @@ export default function StudioHomePage() {
               At a glance
             </h2>
             <p className="mt-1 text-sm text-lum-on-surface-variant">
-              {loading
-                ? "Loading your numbers…"
-                : totalContent === 0
-                  ? "No content yet — use the checklist below to begin."
-                  : `${stats.lessons} lesson${stats.lessons === 1 ? "" : "s"} across your catalog.`}
+              {loading ? (
+                <span
+                  className="inline-flex items-center gap-2"
+                  role="status"
+                  aria-label="Loading statistics"
+                >
+                  <LoadingSpinner size="sm" aria-hidden />
+                </span>
+              ) : totalContent === 0 ? (
+                "No content yet — use the checklist below to begin."
+              ) : (
+                `${stats.lessons} lesson${stats.lessons === 1 ? "" : "s"} across your catalog.`
+              )}
             </p>
           </div>
         </div>
@@ -229,9 +238,9 @@ export default function StudioHomePage() {
                   >
                     {card.icon}
                   </div>
-                  <span className="text-3xl font-bold tabular-nums text-lum-on-background">
+                  <span className="flex h-11 min-w-[2.5rem] items-center justify-end tabular-nums text-3xl font-bold text-lum-on-background">
                     {loading ? (
-                      <span className="inline-block h-9 w-10 animate-pulse rounded-lg bg-lum-surface-container-high/80" />
+                      <LoadingSpinner size="sm" aria-hidden />
                     ) : (
                       card.count
                     )}
