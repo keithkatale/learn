@@ -119,8 +119,7 @@ export default function Home() {
                   </span>
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-lum-on-surface-variant sm:text-sm">
-                  15,000 Ugandan Shillings (UGX 15k) for each lesson you unlock —
-                  valid for one year from when access is granted.
+                  15,000 Ugandan Shillings (UGX 15k) for each lesson you unlock.
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2 pt-1 sm:justify-start">
