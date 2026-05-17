@@ -107,7 +107,16 @@ export async function POST() {
 
     const last = u2?.lastSeenAt ? new Date(u2.lastSeenAt as string).getTime() : 0;
     if (!last || now.getTime() - last >= LAST_SEEN_MIN_INTERVAL_MS) {
-      await admin.from("User").update({ lastSeenAt: nowIso }).eq("id", userId);
+      const { error: seenErr } = await admin
+        .from("User")
+        .update({ lastSeenAt: nowIso })
+        .eq("id", userId);
+      if (seenErr) {
+        console.error(
+          "[learner/activity] lastSeenAt update failed — run prisma/migrations/20260513_learner_activity/migration.sql in Supabase:",
+          seenErr.message,
+        );
+      }
     }
 
     return NextResponse.json({ ok: true });

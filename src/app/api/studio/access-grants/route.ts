@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { isValidUgE164 } from "@/lib/ug-phone";
 import { assertStudioCreator } from "@/app/api/studio/_assert-creator";
 import { ensureLearnerUserForPhone } from "@/lib/ensure-learner-user";
+import {
+  aggregateVisitStats,
+  fetchUsersForInsights,
+  type UserInsightRow,
+} from "@/lib/learner-visit-insights";
 
 async function assertCreator() {
   const gate = await assertStudioCreator();
@@ -30,24 +35,7 @@ export async function GET() {
   const userIds = [...new Set(grantList.map((g: { userId: string }) => g.userId))];
   const lessonIds = [...new Set(grantList.map((g: { lessonId: string }) => g.lessonId))];
 
-  type UserInsightRow = {
-    id: string;
-    phone: string | null;
-    instructorLabel: string | null;
-    lastSeenAt: string | null;
-    passwordHash: string | null;
-    createdAt: string;
-  };
-
-  const [{ data: users }, { data: lessons }, { data: enrollRows }] = await Promise.all([
-    userIds.length
-      ? admin
-          .from("User")
-          .select(
-            "id,phone,instructorLabel,lastSeenAt,passwordHash,createdAt",
-          )
-          .in("id", userIds)
-      : Promise.resolve({ data: [] as UserInsightRow[] }),
+  const [{ data: lessons }, { data: enrollRows }] = await Promise.all([
     lessonIds.length
       ? admin.from("Lesson").select("id,title").in("id", lessonIds)
       : Promise.resolve({ data: [] as { id: string; title: string }[] }),
@@ -58,49 +46,28 @@ export async function GET() {
       .limit(200),
   ]);
 
-  const phoneByUser = Object.fromEntries(
-    (users ?? []).map((u: { id: string; phone: string | null }) => [u.id, u.phone]),
-  );
   const titleByLesson = Object.fromEntries(
     (lessons ?? []).map((l: { id: string; title: string }) => [l.id, l.title]),
   );
 
   const enrollList = enrollRows ?? [];
   const enrollUserIds = [...new Set(enrollList.map((e: { userId: string }) => e.userId))];
-  const { data: enrollUsers } =
-    enrollUserIds.length > 0
-      ? await admin
-          .from("User")
-          .select(
-            "id,phone,instructorLabel,lastSeenAt,passwordHash,createdAt",
-          )
-          .in("id", enrollUserIds)
-      : {
-          data: [] as {
-            id: string;
-            phone: string | null;
-            instructorLabel: string | null;
-            lastSeenAt: string | null;
-            passwordHash: string | null;
-            createdAt: string;
-          }[],
-        };
-
-  const enrollPhoneByUser = Object.fromEntries(
-    (enrollUsers ?? []).map((u: { id: string; phone: string | null }) => [u.id, u.phone]),
-  );
-
-  const userRowById: Record<string, UserInsightRow> = {};
-  for (const u of (users ?? []) as UserInsightRow[]) {
-    userRowById[u.id] = u;
-  }
-  for (const u of (enrollUsers ?? []) as UserInsightRow[]) {
-    userRowById[u.id] = u;
-  }
 
   const allTrackedIds = [
     ...new Set([...userIds, ...enrollUserIds] as string[]),
   ] as string[];
+
+  const insightUsers = await fetchUsersForInsights(admin, allTrackedIds);
+
+  const phoneByUser = Object.fromEntries(
+    insightUsers.map((u) => [u.id, u.phone]),
+  );
+  const enrollPhoneByUser = { ...phoneByUser };
+
+  const userRowById: Record<string, UserInsightRow> = {};
+  for (const u of insightUsers) {
+    userRowById[u.id] = u;
+  }
 
   const { data: sessionRows, error: sessErr } =
     allTrackedIds.length > 0
@@ -143,30 +110,17 @@ export async function GET() {
     sessionsByUser.set(uid, arr);
   }
 
-  const nowMs = Date.now();
   const learnerInsights = allTrackedIds.map((uid) => {
     const u = userRowById[uid];
     const phone =
       u?.phone ?? phoneByUser[uid] ?? enrollPhoneByUser[uid] ?? null;
     const rows = sessionsByUser.get(uid) ?? [];
-    const closed = rows.filter((s) => s.endedAt);
-    const open = rows.filter((s) => !s.endedAt);
-    let totalVisitSeconds = 0;
-    for (const s of closed) {
-      if (typeof s.durationSeconds === "number") {
-        totalVisitSeconds += s.durationSeconds;
-      }
-    }
-    if (open.length > 0) {
-      const latest = open.reduce((a, b) =>
-        new Date(a.lastActivityAt) > new Date(b.lastActivityAt) ? a : b,
-      );
-      totalVisitSeconds += Math.max(
-        0,
-        Math.floor((nowMs - new Date(latest.startedAt).getTime()) / 1000),
-      );
-    }
-    const lastSeenAt = u?.lastSeenAt ?? null;
+    const { totalVisitSeconds, lastActivityAt } = aggregateVisitStats(
+      rows,
+      u?.lastSeenAt ?? null,
+    );
+    const lastSeenAt = lastActivityAt;
+    const hasSessions = rows.length > 0;
     return {
       userId: uid,
       phone,
@@ -174,7 +128,7 @@ export async function GET() {
       accountCreatedAt: u?.createdAt ?? null,
       registered: !!u?.passwordHash,
       lastSeenAt,
-      hasVisitedPlatform: !!lastSeenAt,
+      hasVisitedPlatform: hasSessions || !!lastSeenAt,
       totalVisitSeconds,
     };
   });
