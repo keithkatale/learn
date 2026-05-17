@@ -36,6 +36,7 @@ type LearnerInsight = {
   registered: boolean;
   lastSeenAt: string | null;
   hasVisitedPlatform: boolean;
+  visitCount: number;
   totalVisitSeconds: number;
 };
 
@@ -194,9 +195,9 @@ export default function StudioAccessPage() {
           Learner visits &amp; labels
         </h2>
         <p className="max-w-3xl text-xs leading-relaxed text-lum-on-surface-variant">
-          Names here are for your reference only (not shown to learners). Visit
-          times come from short pings while a learner is signed in on the site;
-          idle for 30 minutes starts a new visit. Run the SQL migration{" "}
+          Names here are for your reference only (not shown to learners). Visits
+          and time on site come from pings while a learner is signed in; idle for
+          30 minutes starts a new visit. Run the SQL migration{" "}
           <span className="font-mono text-lum-primary">
             prisma/migrations/20260513_learner_activity/migration.sql
           </span>{" "}
@@ -220,7 +221,7 @@ export default function StudioAccessPage() {
                   <th className="px-3 py-3">Your label</th>
                   <th className="px-3 py-3">Phone</th>
                   <th className="px-3 py-3">Account</th>
-                  <th className="px-3 py-3">Visited site</th>
+                  <th className="px-3 py-3">Visits</th>
                   <th className="px-3 py-3">Last visit</th>
                   <th className="px-3 py-3">Time on site</th>
                 </tr>
@@ -251,11 +252,11 @@ export default function StudioAccessPage() {
                         <span className="text-amber-900">Pending signup</span>
                       )}
                     </td>
-                    <td className="px-3 py-3">
-                      {row.hasVisitedPlatform ? (
-                        <span className="font-medium text-lum-secondary">Yes</span>
+                    <td className="px-3 py-3 tabular-nums text-lum-on-background">
+                      {row.visitCount > 0 ? (
+                        row.visitCount
                       ) : (
-                        <span className="text-lum-on-surface-variant">Not yet</span>
+                        <span className="text-lum-on-surface-variant">0</span>
                       )}
                     </td>
                     <td className="px-3 py-3 text-lum-on-surface-variant">

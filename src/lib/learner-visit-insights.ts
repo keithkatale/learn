@@ -94,7 +94,11 @@ export type VisitSessionRow = {
 export function aggregateVisitStats(
   sessions: VisitSessionRow[],
   userLastSeenAt: string | null,
-): { totalVisitSeconds: number; lastActivityAt: string | null } {
+): {
+  totalVisitSeconds: number;
+  lastActivityAt: string | null;
+  visitCount: number;
+} {
   const closed = sessions.filter((s) => s.endedAt);
   const open = sessions.filter((s) => !s.endedAt);
   let totalVisitSeconds = 0;
@@ -136,5 +140,6 @@ export function aggregateVisitStats(
   return {
     totalVisitSeconds,
     lastActivityAt: lastMs > 0 ? new Date(lastMs).toISOString() : null,
+    visitCount: sessions.length,
   };
 }

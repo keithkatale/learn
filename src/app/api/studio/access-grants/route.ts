@@ -115,12 +115,12 @@ export async function GET() {
     const phone =
       u?.phone ?? phoneByUser[uid] ?? enrollPhoneByUser[uid] ?? null;
     const rows = sessionsByUser.get(uid) ?? [];
-    const { totalVisitSeconds, lastActivityAt } = aggregateVisitStats(
+    const { totalVisitSeconds, lastActivityAt, visitCount } = aggregateVisitStats(
       rows,
       u?.lastSeenAt ?? null,
     );
     const lastSeenAt = lastActivityAt;
-    const hasSessions = rows.length > 0;
+    const hasSessions = visitCount > 0;
     return {
       userId: uid,
       phone,
@@ -129,6 +129,7 @@ export async function GET() {
       registered: !!u?.passwordHash,
       lastSeenAt,
       hasVisitedPlatform: hasSessions || !!lastSeenAt,
+      visitCount,
       totalVisitSeconds,
     };
   });
