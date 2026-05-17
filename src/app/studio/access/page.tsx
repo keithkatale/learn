@@ -200,7 +200,8 @@ export default function StudioAccessPage() {
           <span className="font-mono text-lum-primary">
             prisma/migrations/20260513_learner_activity/migration.sql
           </span>{" "}
-          in Supabase if this table is empty or you see fetch errors.
+          in Supabase if visit columns are missing. Phone numbers load from the
+          User table (or learner email placeholders).
         </p>
         {loading ? (
           <div className="flex items-center gap-2 py-2" role="status" aria-label="Loading">

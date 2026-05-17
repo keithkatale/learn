@@ -125,7 +125,7 @@ export async function GET() {
       userId: uid,
       phone,
       instructorLabel: u?.instructorLabel ?? null,
-      accountCreatedAt: u?.createdAt ?? null,
+      accountCreatedAt: u?.accountCreatedAt ?? null,
       registered: !!u?.passwordHash,
       lastSeenAt,
       hasVisitedPlatform: hasSessions || !!lastSeenAt,

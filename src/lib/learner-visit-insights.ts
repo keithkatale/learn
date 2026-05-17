@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { phoneFromLearnerPlaceholderEmail } from "@/lib/ug-phone";
 
 export type UserInsightRow = {
   id: string;
@@ -6,52 +7,80 @@ export type UserInsightRow = {
   instructorLabel: string | null;
   lastSeenAt: string | null;
   passwordHash: string | null;
-  createdAt: string;
+  accountCreatedAt: string | null;
 };
 
-/** Loads learner rows for Studio analytics; falls back if optional columns are missing in DB. */
+type RawUserRow = Record<string, unknown>;
+
+const USER_SELECT_ATTEMPTS = [
+  "id,phone,email,instructorLabel,lastSeenAt,passwordHash",
+  "id,phone,email,instructorLabel,passwordHash",
+  "id,phone,email,passwordHash",
+  "id,phone,passwordHash",
+  "id,phone,email",
+  "id,phone",
+  "id,email,passwordHash",
+  "id",
+] as const;
+
+function normalizeUserRow(raw: RawUserRow): UserInsightRow {
+  const id = String(raw.id ?? "");
+  const phoneCol =
+    typeof raw.phone === "string" && raw.phone.trim()
+      ? raw.phone.trim()
+      : null;
+  const email =
+    typeof raw.email === "string" && raw.email.trim() ? raw.email.trim() : null;
+  const phone = phoneCol ?? phoneFromLearnerPlaceholderEmail(email);
+
+  return {
+    id,
+    phone,
+    instructorLabel:
+      typeof raw.instructorLabel === "string" ? raw.instructorLabel : null,
+    lastSeenAt:
+      typeof raw.lastSeenAt === "string" ? raw.lastSeenAt : null,
+    passwordHash:
+      typeof raw.passwordHash === "string" ? raw.passwordHash : null,
+    accountCreatedAt:
+      typeof raw.createdAt === "string" ? raw.createdAt : null,
+  };
+}
+
+/**
+ * Loads learner rows for Studio analytics. Tries several column sets because
+ * production Supabase schemas may omit Prisma-only columns (e.g. createdAt).
+ */
 export async function fetchUsersForInsights(
   admin: SupabaseClient,
   ids: string[],
 ): Promise<UserInsightRow[]> {
   if (ids.length === 0) return [];
 
-  const { data, error } = await admin
-    .from("User")
-    .select(
-      "id,phone,instructorLabel,lastSeenAt,passwordHash,createdAt",
-    )
-    .in("id", ids);
+  let lastError: string | undefined;
 
-  if (!error && data) {
-    return data as UserInsightRow[];
+  for (const columns of USER_SELECT_ATTEMPTS) {
+    const { data, error } = await admin.from("User").select(columns).in("id", ids);
+
+    if (!error && data?.length) {
+      return (data as unknown as RawUserRow[]).map(normalizeUserRow);
+    }
+
+    if (error) {
+      lastError = error.message;
+      continue;
+    }
+
+    if (data?.length === 0 && ids.length > 0) {
+      return [];
+    }
   }
 
-  if (error) {
-    console.warn(
-      "[fetchUsersForInsights] full select failed, retrying core columns:",
-      error.message,
-    );
+  if (lastError) {
+    console.error("[fetchUsersForInsights] all selects failed:", lastError);
   }
 
-  const { data: core, error: coreErr } = await admin
-    .from("User")
-    .select("id,phone,passwordHash,createdAt")
-    .in("id", ids);
-
-  if (coreErr || !core) {
-    console.error("[fetchUsersForInsights] core select failed:", coreErr?.message);
-    return [];
-  }
-
-  return core.map((u) => ({
-    id: u.id as string,
-    phone: (u.phone as string | null) ?? null,
-    passwordHash: (u.passwordHash as string | null) ?? null,
-    createdAt: u.createdAt as string,
-    instructorLabel: null,
-    lastSeenAt: null,
-  }));
+  return [];
 }
 
 export type VisitSessionRow = {

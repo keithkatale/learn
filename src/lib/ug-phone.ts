@@ -51,6 +51,20 @@ export function learnerPlaceholderEmail(e164Phone: string): string {
   return `${digits}@learners.phone`;
 }
 
+/** Reverse of {@link learnerPlaceholderEmail} when `User.phone` is empty. */
+export function phoneFromLearnerPlaceholderEmail(
+  email: string | null | undefined,
+): string | null {
+  if (!email?.trim()) return null;
+  const m = /^(\d{11,12})@learners\.phone$/i.exec(email.trim());
+  if (!m) return null;
+  const digits = m[1];
+  if (digits.length === 12 && digits.startsWith("256")) {
+    return `+${digits}`;
+  }
+  return null;
+}
+
 export function maskUgPhoneDisplay(e164: string): string {
   const digits = e164.replace(/\D/g, "");
   let national = digits;
